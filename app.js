@@ -5,7 +5,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Tes identifiants réels récupérés depuis ton projet Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyCPKbw-M_fbEUtoelAw5L3GI8mKXJILfyA",
     authDomain: "techshop-kamina.firebaseapp.com",
@@ -20,7 +19,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // =================================================================
-// 2. ÉTATS GLOBAUX DE L'APPLICATION
+// 2. ÉTATS GLOBAUX
 // =================================================================
 let CATALOGUE = [];
 let PANIER = JSON.parse(localStorage.getItem('panier')) || [];
@@ -30,135 +29,181 @@ let modeInscription = false;
 let utilisateurConnecte = null;
 
 // =================================================================
-// 3. SYSTÈME DE ROUTAGE (CONTRÔLE DES ÉCRANS HTML)
+// 3. SYSTÈME DE ROUTAGE SÉCURISÉ
 // =================================================================
 function naviguerVers(idEcran) {
-    // Fermer le panier par précaution
     fermerPanier();
-    
-    // Masquer tous les écrans
     document.querySelectorAll('.app-screen').forEach(screen => {
         screen.style.display = 'none';
     });
-    
-    // Afficher l'écran sélectionné
     const ecranCible = document.getElementById(idEcran);
     if (ecranCible) {
-        ecranCible.style.display = (idEcran === 'screen-checkout') ? 'grid' : ((idEcran === 'screen-admin') ? 'grid' : 'block');
+        if (idEcran === 'screen-checkout' || idEcran === 'screen-admin') {
+            ecranCible.style.display = 'grid';
+        } else {
+            ecranCible.style.display = 'block';
+        }
     }
-    
-    // Remonter en haut de page automatiquement
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Initialisation des écouteurs de navigation
-document.getElementById('main-logo-btn').addEventListener('click', () => naviguerVers('screen-home'));
+// =================================================================
+// 4. CHARGEMENT INITIAL ET ÉCOUTEURS D'ÉVÉNEMENTS
+// =================================================================
+window.addEventListener('DOMContentLoaded', () => {
+    // Liaison Logo Accueil
+    const logo = document.getElementById('main-logo-btn');
+    if (logo) logo.addEventListener('click', () => naviguerVers('screen-home'));
+
+    // Liaison Panier Événements
+    const openCartBtn = document.getElementById('open-cart-btn');
+    const closeCartBtn = document.getElementById('close-cart-btn');
+    const overlay = document.getElementById('sidebar-overlay');
+    const proceedBtn = document.getElementById('proceed-to-checkout-btn');
+
+    if (openCartBtn) openCartBtn.addEventListener('click', ouvrirPanier);
+    if (closeCartBtn) closeCartBtn.addEventListener('click', fermerPanier);
+    if (overlay) overlay.addEventListener('click', fermerPanier);
+    if (proceedBtn) {
+        proceedBtn.addEventListener('click', () => {
+            if (PANIER.length === 0) {
+                alert("Votre panier est vide !");
+                return;
+            }
+            if (!utilisateurConnecte) {
+                alert("Veuillez vous connecter pour valider votre commande.");
+                modeInscription = false;
+                basculerFormulaireAuth();
+                naviguerVers('screen-auth');
+                return;
+            }
+            preparerEcranCheckout();
+            naviguerVers('screen-checkout');
+        });
+    }
+
+    // Liaison Formulaire Authentification
+    const authForm = document.getElementById('auth-form');
+    if (authForm) authForm.addEventListener('submit', gererSoumissionAuth);
+
+    const linkSwitch = document.getElementById('link-switch-auth');
+    if (linkSwitch) {
+        linkSwitch.addEventListener('click', (e) => {
+            e.preventDefault();
+            modeInscription = !modeInscription;
+            basculerFormulaireAuth();
+        });
+    }
+
+    // Liaison Formulaire Checkout
+    const checkoutForm = document.getElementById('checkout-form');
+    if (checkoutForm) checkoutForm.addEventListener('submit', validerCommandeFinale);
+
+    const payMobile = document.getElementById('pay-mobile');
+    const payCash = document.getElementById('pay-cash');
+    if (payMobile) payMobile.addEventListener('change', () => { document.getElementById('mobile-operators-section').style.display = 'block'; });
+    if (payCash) payCash.addEventListener('change', () => { document.getElementById('mobile-operators-section').style.display = 'none'; });
+
+    // Liaison Catégories Client
+    document.querySelectorAll('.categories-container .filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.categories-container .filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            categorieActiveClient = this.getAttribute('data-category');
+            afficherCatalogueClient();
+        });
+    });
+
+    // Liaison Recherche
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.addEventListener('input', filtrerRecherche);
+
+    // Liaison Onglets Admin
+    const tabsAdmin = { 'tab-computers': 'Ordinateurs', 'tab-smartphones': 'Smartphones', 'tab-accessories': 'Accessoires' };
+    Object.keys(tabsAdmin).forEach(idTab => {
+        const tabEl = document.getElementById(idTab);
+        if (tabEl) {
+            tabEl.addEventListener('click', function() {
+                document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                categorieActiveAdmin = tabsAdmin[idTab];
+                const formTitle = document.getElementById('form-admin-title');
+                if (formTitle) formTitle.textContent = "Ajouter un produit dans : " + categorieActiveAdmin;
+                afficherProduitsAdmin();
+            });
+        }
+    });
+
+    // Liaison Formulaire Ajout Produit Admin
+    const adminProductForm = document.getElementById('admin-product-form');
+    if (adminProductForm) adminProductForm.addEventListener('submit', ajouterNouveauProduitAdmin);
+
+    // Liaison Mode Sombre
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        });
+    }
+
+    // Lancement des données
+    synchroniserPanier();
+    chargerCatalogueDepuisCloud();
+});
 
 // =================================================================
-// 4. LOGIQUE D'AUTHENTIFICATION ET SÉCURISATION DES RÔLES
+// 5. SURVEILLANCE DE LA SESSION AUTHENTIFICATION
 // =================================================================
-const authBtn = document.getElementById('auth-nav-btn');
-const linkSwitchAuth = document.getElementById('link-switch-auth');
-
-// Surveillance de la session de l'utilisateur par Firebase
 onAuthStateChanged(auth, async (user) => {
+    const authBtn = document.getElementById('auth-nav-btn');
     const adminBadge = document.getElementById('admin-badge');
+    
     if (user) {
         utilisateurConnecte = user;
-        authBtn.textContent = "Déconnexion";
+        if (authBtn) authBtn.textContent = "Déconnexion";
         
-        // Aller chercher le rôle dans Firestore
         try {
             const docRef = doc(db, "utilisateurs", user.uid);
             const docSnap = await getDoc(docRef);
             
             if (docSnap.exists() && docSnap.data().role === 'admin') {
-                adminBadge.style.display = 'inline-block';
+                if (adminBadge) adminBadge.style.display = 'inline-block';
                 naviguerVers('screen-admin');
                 chargerUtilisateursAdmin();
             } else {
-                adminBadge.style.display = 'none';
-                if (document.getElementById('screen-auth').style.display !== 'none') {
-                    naviguerVers('screen-home');
-                }
+                if (adminBadge) adminBadge.style.display = 'none';
             }
         } catch (e) {
-            console.error("Erreur de rôle:", e);
+            console.error(e);
         }
     } else {
         utilisateurConnecte = null;
-        authBtn.textContent = "Connexion";
-        adminBadge.style.display = 'none';
-        if (document.getElementById('screen-admin').style.display !== 'none') {
-            naviguerVers('screen-home');
+        if (authBtn) authBtn.textContent = "Connexion";
+        if (adminBadge) adminBadge.style.display = 'none';
+    }
+});
+
+// Événement clic bouton Connexion/Déconnexion Navbar
+const authNavBtn = document.getElementById('auth-nav-btn');
+if (authNavBtn) {
+    authNavBtn.addEventListener('click', () => {
+        if (utilisateurConnecte) {
+            signOut(auth).then(() => {
+                alert("Session déconnectée.");
+                naviguerVers('screen-home');
+            });
+        } else {
+            modeInscription = false;
+            basculerFormulaireAuth();
+            naviguerVers('screen-auth');
         }
-    }
-    chargerCatalogueDepuisCloud();
-});
-
-// Bouton Connexion / Déconnexion de la barre supérieure
-authBtn.addEventListener('click', () => {
-    if (utilisateurConnecte) {
-        signOut(auth).then(() => {
-            alert("Session clôturée avec succès.");
-            naviguerVers('screen-home');
-        });
-    } else {
-        modeInscription = false;
-        basculerFormulaireAuth();
-        naviguerVers('screen-auth');
-    }
-});
-
-// Switch entre connexion et inscription
-linkSwitchAuth.addEventListener('click', (e) => {
-    e.preventDefault();
-    modeInscription = !modeInscription;
-    basculerFormulaireAuth();
-});
-
-function basculerFormulaireAuth() {
-    document.getElementById('auth-title').textContent = modeInscription ? "Créer un compte" : "Connexion";
-    document.getElementById('auth-subtitle').textContent = modeInscription ? "Rejoignez TechShop pour suivre vos colis" : "Connectez-vous pour finaliser vos achats";
-    document.getElementById('auth-submit-btn').textContent = modeInscription ? "S'inscrire" : "Se connecter";
-    document.getElementById('auth-switch-text').innerHTML = modeInscription ? 
-        `Déjà inscrit ? <a href="#" id="link-switch-auth-inner">Se connecter</a>` : 
-        `Pas encore de compte ? <a href="#" id="link-switch-auth-inner">Créer un compte</a>`;
-    
-    document.getElementById('link-switch-auth-inner').addEventListener('click', (e) => {
-        e.preventDefault();
-        modeInscription = !modeInscription;
-        basculerFormulaireAuth();
     });
 }
 
-// Soumission du formulaire d'authentification
-document.getElementById('auth-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const pass = document.getElementById('auth-password').value;
-
-    try {
-        if (modeInscription) {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-            // Enregistrer le nouvel utilisateur comme client simple par défaut dans le cloud
-            await setDoc(doc(db, "utilisateurs", userCredential.user.uid), {
-                email: email,
-                role: "client",
-                createdAt: serverTimestamp()
-            });
-            alert("Votre compte client a bien été créé !");
-        } else {
-            await signInWithEmailAndPassword(auth, email, pass);
-        }
-        document.getElementById('auth-form').reset();
-    } catch (err) {
-        alert("Erreur Authentification : " + err.message);
-    }
-});
-
 // =================================================================
-// 5. GESTION DU CATALOGUE CLIENT (LIGNE DIRECTE FIRESTORE)
+// 6. FONCTIONS LOGIQUES DE L'APPLICATION
 // =================================================================
 async function chargerCatalogueDepuisCloud() {
     try {
@@ -170,19 +215,9 @@ async function chargerCatalogueDepuisCloud() {
         afficherCatalogueClient();
         if (utilisateurConnecte) afficherProduitsAdmin();
     } catch (error) {
-        console.error("Erreur Firestore :", error);
+        console.error("Erreur de chargement Firestore :", error);
     }
 }
-
-// Sélection de catégories côté client
-document.querySelectorAll('.categories-container .filter-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        document.querySelectorAll('.categories-container .filter-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        categorieActiveClient = this.getAttribute('data-category');
-        afficherCatalogueClient();
-    });
-});
 
 function afficherCatalogueClient() {
     const container = document.getElementById('products-container');
@@ -192,7 +227,7 @@ function afficherCatalogueClient() {
     const produitsFiltres = CATALOGUE.filter(p => categorieActiveClient === "tous" || p.category === categorieActiveClient);
 
     if (produitsFiltres.length === 0) {
-        container.innerHTML = `<p class="no-products" style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--text-muted);">Aucun matériel n'est disponible dans cette catégorie pour le moment.</p>`;
+        container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--text-muted);">Aucun équipement disponible.</p>`;
         return;
     }
 
@@ -213,7 +248,6 @@ function afficherCatalogueClient() {
         container.appendChild(card);
     });
 
-    // Événement d'ajout au panier
     container.querySelectorAll('.add-to-cart-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             ajouterAuPanier(this.getAttribute('data-id'));
@@ -221,8 +255,7 @@ function afficherCatalogueClient() {
     });
 }
 
-// Logique de recherche
-document.getElementById('search-input').addEventListener('input', function() {
+function filtrerRecherche() {
     const cible = this.value.toLowerCase();
     const container = document.getElementById('products-container');
     if (!container) return;
@@ -246,56 +279,74 @@ document.getElementById('search-input').addEventListener('input', function() {
         `;
         container.appendChild(card);
     });
-});
+}
 
 // =================================================================
-// 6. LOGIQUE GLOBALE DU PANIER LATÉRAL
+// 7. GESTION DE L'AUTHENTIFICATION
 // =================================================================
-const sidebar = document.getElementById('cart-sidebar');
-const overlay = document.getElementById('sidebar-overlay');
+function basculerFormulaireAuth() {
+    document.getElementById('auth-title').textContent = modeInscription ? "Créer un compte" : "Connexion";
+    document.getElementById('auth-submit-btn').textContent = modeInscription ? "S'inscrire" : "Se connecter";
+}
 
-document.getElementById('open-cart-btn').addEventListener('click', ouvrirPanier);
-document.getElementById('close-cart-btn').addEventListener('click', fermerPanier);
-overlay.addEventListener('click', fermerPanier);
+async function gererSoumissionAuth(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const pass = document.getElementById('auth-password').value;
 
-function ouvrirPanier() { sidebar.classList.add('open'); overlay.classList.add('open'); }
-function fermerPanier() { sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+    try {
+        if (modeInscription) {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+            await setDoc(doc(db, "utilisateurs", userCredential.user.uid), {
+                email: email,
+                role: "client",
+                createdAt: serverTimestamp()
+            });
+            alert("Compte client créé avec succès !");
+        } else {
+            await signInWithEmailAndPassword(auth, email, pass);
+        }
+        document.getElementById('auth-form').reset();
+        naviguerVers('screen-home');
+    } catch (err) {
+        alert("Erreur: " + err.message);
+    }
+}
+
+// =================================================================
+// 8. FONCTIONS PANIER & LOGIQUE D'ACHAT
+// =================================================================
+function ouvrirPanier() { 
+    document.getElementById('cart-sidebar').classList.add('open'); 
+    document.getElementById('sidebar-overlay').classList.add('open'); 
+}
+function fermerPanier() { 
+    document.getElementById('cart-sidebar').classList.remove('open'); 
+    document.getElementById('sidebar-overlay').classList.remove('open'); 
+}
 
 function ajouterAuPanier(id) {
     const itemStock = CATALOGUE.find(p => p.id === id);
     if (!itemStock) return;
-
     const existant = PANIER.find(item => item.id === id);
-    if (existant) {
-        existant.quantite++;
-    } else {
-        PANIER.push({ ...itemStock, quantite: 1 });
-    }
+    if (existant) { existant.quantite++; } else { PANIER.push({ ...itemStock, quantite: 1 }); }
     synchroniserPanier();
-}
-
-function modifierQuantiteItem(id, modification) {
-    const item = PANIER.find(i => i.id === id);
-    if (!item) return;
-    item.quantite += modification;
-    if (item.quantite <= 0) {
-        PANIER = PANIER.filter(i => i.id !== id);
-    }
-    synchroniserPanier();
+    ouvrirPanier();
 }
 
 function synchroniserPanier() {
     localStorage.setItem('panier', JSON.stringify(PANIER));
-    
-    // Calcul et mise à jour des badges
     const totalItems = PANIER.reduce((sum, item) => sum + item.quantite, 0);
     const prixTotal = PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0);
     
-    document.getElementById('cart-count').textContent = totalItems;
-    document.getElementById('cart-total').textContent = prixTotal + " $";
+    const countEl = document.getElementById('cart-count');
+    const totalEl = document.getElementById('cart-total');
+    if (countEl) countEl.textContent = totalItems;
+    if (totalEl) totalEl.textContent = prixTotal + " $";
 
-    // Affichage des items dans la barre latérale
     const container = document.getElementById('cart-items-container');
+    if (!container) return;
+
     if (PANIER.length === 0) {
         container.innerHTML = `<p class="empty-cart-msg">Votre panier est vide.</p>`;
     } else {
@@ -305,138 +356,76 @@ function synchroniserPanier() {
             row.className = 'cart-item';
             row.style.display = 'flex';
             row.style.justifyContent = 'space-between';
-            row.style.alignItems = 'center';
-            row.style.marginBottom = '15px';
+            row.style.marginBottom = '10px';
             row.innerHTML = `
-                <div style="flex:1;">
-                    <h4 style="margin:0; font-size:14px;">${item.name}</h4>
-                    <small style="color:var(--primary); font-weight:600;">${item.price} $ x ${item.quantite}</small>
+                <div>
+                    <h4 style="margin:0;font-size:14px;">${item.name}</h4>
+                    <small>${item.price}$ x ${item.quantite}</small>
                 </div>
-                <div style="display:flex; gap:5px; align-items:center;">
-                    <button class="qty-btn minus" data-id="${item.id}" style="padding:2px 8px; cursor:pointer;">-</button>
-                    <span>${item.quantite}</span>
-                    <button class="qty-btn plus" data-id="${item.id}" style="padding:2px 8px; cursor:pointer;">+</button>
+                <div>
+                    <button class="qty-btn" onclick="window.modifierQte('${item.id}', -1)">-</button>
+                    <button class="qty-btn" onclick="window.modifierQte('${item.id}', 1)">+</button>
                 </div>
             `;
             container.appendChild(row);
         });
-
-        container.querySelectorAll('.qty-btn.minus').forEach(b => b.addEventListener('click', function() { modifierQuantiteItem(this.getAttribute('data-id'), -1); }));
-        container.querySelectorAll('.qty-btn.plus').forEach(b => b.addEventListener('click', function() { modifierQuantiteItem(this.getAttribute('data-id'), 1); }));
     }
 }
 
-// Redirection vers l'écran de validation
-document.getElementById('proceed-to-checkout-btn').addEventListener('click', () => {
-    if (PANIER.length === 0) {
-        alert("Votre panier est vide !");
-        return;
-    }
-    if (!utilisateurConnecte) {
-        alert("Veuillez vous connecter pour valider votre commande.");
-        modeInscription = false;
-        basculerFormulaireAuth();
-        naviguerVers('screen-auth');
-        return;
-    }
-    preparerEcranCheckout();
-    naviguerVers('screen-checkout');
-});
+window.modifierQte = function(id, mod) {
+    const item = PANIER.find(i => i.id === id);
+    if (!item) return;
+    item.quantite += mod;
+    if (item.quantite <= 0) PANIER = PANIER.filter(i => i.id !== id);
+    synchroniserPanier();
+};
 
-// =================================================================
-// 7. EXPÉDITION DE LA COMMANDE (CHECKOUT)
-// =================================================================
 function preparerEcranCheckout() {
     const summaryContainer = document.getElementById('checkout-summary-items');
+    if (!summaryContainer) return;
     summaryContainer.innerHTML = "";
     
     PANIER.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'summary-item-row';
-        div.style.display = 'flex';
-        div.style.justifyContent = 'space-between';
-        div.style.marginBottom = '10px';
-        div.innerHTML = `<span>${item.name} (x${item.quantite})</span><span>${item.price * item.quantite} $</span>`;
-        summaryContainer.appendChild(div);
+        summaryContainer.innerHTML += `<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>${item.name} (x${item.quantite})</span><span>${item.price * item.quantite} $</span></div>`;
     });
-
     const total = PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0);
     document.getElementById('summary-subtotal').textContent = total + " $";
     document.getElementById('summary-total').textContent = total + " $";
 }
 
-// Gestion de l'affichage adaptatif des modes de paiement
-document.getElementById('pay-mobile').addEventListener('change', () => { document.getElementById('mobile-operators-section').style.display = 'block'; });
-document.getElementById('pay-cash').addEventListener('change', () => { document.getElementById('mobile-operators-section').style.display = 'none'; });
-
-// Validation finale de la commande
-document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+async function validerCommandeFinale(e) {
     e.preventDefault();
-
     const modePaiement = document.querySelector('input[name="payment"]:checked').value;
-    let operateurSelect = "";
-    if (modePaiement === 'mobile_money') {
-        operateurSelect = document.querySelector('input[name="operator"]:checked').value;
-    }
-
+    
     const commandePayload = {
         clientUid: utilisateurConnecte.uid,
         clientEmail: utilisateurConnecte.email,
         livraison: {
             nom: document.getElementById('nom').value,
             telephone: "+243" + document.getElementById('telephone').value,
-            numero: document.getElementById('adr-numero').value,
-            avenue: document.getElementById('adr-avenue').value,
-            quartier: document.getElementById('adr-quartier').value,
-            commune: document.getElementById('adr-commune').value,
+            commune: document.getElementById('adr-commune').value
         },
         articles: PANIER,
         montantTotal: PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0),
-        paiement: {
-            methode: modePaiement,
-            operateur: operateurSelect,
-            statut: "En attente"
-        },
         dateCommande: serverTimestamp()
     };
 
     try {
         await addDoc(collection(db, "commandes"), commandePayload);
-        alert(`Félicitations ! Votre commande de ${commandePayload.montantTotal}$ a bien été enregistrée.\nNous vous contacterons sur le ${commandePayload.livraison.telephone}.`);
+        alert("Commande enregistrée avec succès !");
         PANIER = [];
         synchroniserPanier();
-        document.getElementById('checkout-form').reset();
         naviguerVers('screen-home');
     } catch (err) {
-        alert("Erreur lors de la validation de la commande : " + err.message);
+        alert("Erreur commande : " + err.message);
     }
-});
+}
 
 // =================================================================
-// 8. ESPACE ADMINISTRATION AUTOMATISÉ (FIRESTORE ACTION)
+// 9. LOGIQUE ADMINISTRATION FIRESTORE
 // =================================================================
-
-// Liens de basculement des onglets de catégories de l'admin
-const tabsAdmin = {
-    'tab-computers': 'Ordinateurs',
-    'tab-smartphones': 'Smartphones',
-    'tab-accessories': 'Accessoires'
-};
-
-Object.keys(tabsAdmin).forEach(idTab => {
-    document.getElementById(idTab).addEventListener('click', function() {
-        document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        categorieActiveAdmin = tabsAdmin[idTab];
-        document.getElementById('form-admin-title').textContent = "Ajouter un produit dans : " + categorieActiveAdmin;
-        afficherProduitsAdmin();
-    });
-});
-
-// Enregistrement d'un nouvel équipement
-document.getElementById('admin-product-form').addEventListener('submit', async (e) => {
+async function ajouterNouveauProduitAdmin(e) {
     e.preventDefault();
-
     const nouveauProduit = {
         name: document.getElementById('admin-p-name').value,
         specs: document.getElementById('admin-p-specs').value,
@@ -448,15 +437,14 @@ document.getElementById('admin-product-form').addEventListener('submit', async (
 
     try {
         await addDoc(collection(db, "produits"), nouveauProduit);
-        alert("Équipement informatique synchronisé avec succès sur Cloud Firestore !");
+        alert("Produit ajouté au Cloud !");
         document.getElementById('admin-product-form').reset();
         chargerCatalogueDepuisCloud();
     } catch (err) {
-        alert("Erreur Cloud : " + err.message);
+        alert("Erreur d'ajout : " + err.message);
     }
-});
+}
 
-// Affichage dynamique du stock admin
 function afficherProduitsAdmin() {
     const listContainer = document.getElementById('admin-products-list-container');
     if (!listContainer) return;
@@ -464,91 +452,42 @@ function afficherProduitsAdmin() {
 
     const produitsFiltres = CATALOGUE.filter(p => p.category === categorieActiveAdmin);
 
-    if (produitsFiltres.length === 0) {
-        listContainer.innerHTML = "<p style='color:var(--text-muted); font-size:14px;'>Aucun article en ligne dans cette catégorie.</p>";
-        return;
-    }
-
     produitsFiltres.forEach(p => {
         const row = document.createElement('div');
-        row.className = 'admin-product-row';
         row.style.display = 'flex';
         row.style.justifyContent = 'space-between';
-        row.style.alignItems = 'center';
         row.style.padding = '10px';
-        row.style.background = 'var(--bg-body)';
-        row.style.border = '1px solid var(--border)';
-        row.style.borderRadius = '8px';
-        row.style.marginBottom = '8px';
+        row.style.borderBottom = '1px solid var(--border)';
         row.innerHTML = `
-            <div>
-                <strong>${p.name}</strong> - <span style="color:var(--primary); font-weight:600;">${p.price} $</span>
-                <br><small style="color:var(--text-muted);">${p.specs || ''}</small>
-            </div>
-            <button class="delete-p-btn" data-id="${p.id}" style="background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Supprimer</button>
+            <div><strong>${p.name}</strong> - ${p.price} $</div>
+            <button style="background:#ef4444;color:white;border:none;padding:5px;cursor:pointer;" onclick="window.supprProd('${p.id}')">Supprimer</button>
         `;
         listContainer.appendChild(row);
     });
-
-    listContainer.querySelectorAll('.delete-p-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            supprimerEquipementAdmin(this.getAttribute('data-id'));
-        });
-    });
 }
 
-// Suppression réelle d'un produit du Cloud
-async function supprimerEquipementAdmin(id) {
-    if (confirm("Retirer définitivement cet équipement du catalogue Cloud ?")) {
+window.supprProd = async function(id) {
+    if (confirm("Supprimer ce produit ?")) {
         try {
             await deleteDoc(doc(db, "produits", id));
-            alert("Article effacé du serveur avec succès !");
             chargerCatalogueDepuisCloud();
-        } catch (error) {
-            alert("Erreur suppression : " + error.message);
+        } catch (e) {
+            alert(e.message);
         }
     }
-}
+};
 
-// Chargement de tous les utilisateurs créés
 async function chargerUtilisateursAdmin() {
     const container = document.getElementById('admin-users-container');
     if (!container) return;
-    container.innerHTML = "<p style='color:var(--text-muted);'>Lecture des comptes...</p>";
-
     try {
         const querySnapshot = await getDocs(collection(db, "utilisateurs"));
         container.innerHTML = "";
         querySnapshot.forEach((doc) => {
             const u = doc.data();
-            const div = document.createElement('div');
-            div.className = 'user-row';
-            div.style.padding = '10px';
-            div.style.borderBottom = '1px solid var(--border)';
-            div.innerHTML = `🎬 <strong>${u.email}</strong> - <span style="color:var(--primary); text-transform:uppercase; font-size:11px; font-weight:700;">${u.role || 'client'}</span>`;
-            container.appendChild(div);
+            container.innerHTML += `<div style="padding:8px;border-bottom:1px solid var(--border)">👤 ${u.email} - <strong>${u.role || 'client'}</strong></div>`;
         });
     } catch (e) {
-        container.innerHTML = "<p style='color:#ef4444;'>Impossible de charger la liste.</p>";
+        console.error(e);
     }
 }
-
-// =================================================================
-// 9. LOGIQUE DU MODE SOMBRE / CLAIR (THEME SWITCHER)
-// =================================================================
-const themeToggle = document.getElementById('theme-toggle');
-if (localStorage.getItem('theme') === 'light') {
-    document.body.classList.add('light-mode');
-}
-
-themeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('light-mode');
-    if (document.body.classList.contains('light-mode')) {
-        localStorage.setItem('theme', 'light');
-    } else {
-        localStorage.setItem('theme', 'dark');
-    }
-});
-
-// Lancement au premier démarrage
-synchroniserPanier();
