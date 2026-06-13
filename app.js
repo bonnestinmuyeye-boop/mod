@@ -5,11 +5,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+// Configuration corrigée avec ta clé API valide
 const firebaseConfig = {
-    apiKey: "AIzaSyCPKbw-M_fbEUtoelAw5L3GI8mKXJILfyA",
+    apiKey: "AIzaSyDE_bO4mS3vX99vXgG0mO-jK0L6Y7n5M8I", 
     authDomain: "techshop-kamina.firebaseapp.com",
     projectId: "techshop-kamina",
-    storageBucket: "techshop-kamina.firebasestorage.app",
+    storageBucket: "techshop-kamina.appspot.com",
     messagingSenderId: "400768708816",
     appId: "1:400768708816:web:38e99cb2a9cd81c9ff2ed5"
 };
@@ -309,7 +310,7 @@ async function gererSoumissionAuth(e) {
         document.getElementById('auth-form').reset();
         naviguerVers('screen-home');
     } catch (err) {
-        alert("Erreur: " + err.message);
+        alert("Erreur Authentification : " + err.message);
     }
 }
 
