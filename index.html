@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TechShop Kamina | Matériels Informatiques</title>
+    <title>TechShop | Vente Matériels Informatiques</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,183 +19,137 @@
         </div>
     </header>
 
-    <div id="screen-home" class="app-screen">
-        <div class="search-container">
-            <input type="text" id="search-input" placeholder="Rechercher un ordinateur, smartphone, spécifications...">
-        </div>
-        <div class="categories-container">
-            <button class="filter-btn active" data-category="tous">Tous</button>
-            <button class="filter-btn" data-category="Ordinateurs">Ordinateurs</button>
-            <button class="filter-btn" data-category="Smartphones">Smartphones</button>
-            <button class="filter-btn" data-category="Accessoires">Accessoires</button>
-        </div>
-        <main class="products-grid" id="products-container">
-            <p style="text-align:center; grid-column:1/-1; color:var(--text-muted);">Connexion au cloud Firestore...</p>
-        </main>
-    </div>
-
-    <div id="screen-auth" class="app-screen" style="display: none;">
-        <div class="auth-body">
-            <div class="auth-container">
-                <h2 id="auth-title">Connexion</h2>
-                <p id="auth-subtitle" style="text-align:center; color:var(--text-muted); font-size:13px; margin-bottom:20px;"></p>
-                <form id="auth-form">
-                    <div class="form-group">
-                        <label>Adresse E-mail</label>
-                        <input type="email" id="auth-email" required placeholder="exemple@gmail.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Mot de passe</label>
-                        <input type="password" id="auth-password" required placeholder="••••••••">
-                    </div>
-                    <button type="submit" class="add-to-cart-btn" id="auth-submit-btn" style="width:100%; padding:12px; margin-top:10px;">Valider</button>
-                </form>
-                <p class="auth-switch" id="auth-switch-text">Pas encore de compte ? <a href="#" id="link-switch-auth">Créer un compte</a></p>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-checkout" class="app-screen" style="display: none;">
-        <div class="checkout-layout">
-            <div class="checkout-form-section">
-                <h2>Détails de la livraison</h2>
-                <form id="checkout-form">
-                    <div class="form-group">
-                        <label>Nom complet du destinataire</label>
-                        <input type="text" id="nom" required placeholder="Ex: Bonnestin Muyeye">
-                    </div>
-                    <div class="form-group">
-                        <label>Numéro de Téléphone (WhatsApp de préférence)</label>
-                        <div class="phone-input-wrapper">
-                            <span class="phone-prefix">+243</span>
-                            <input type="tel" id="telephone" required placeholder="972177681" max-length="9">
-                        </div>
-                    </div>
-                    <div class="form-group-row">
-                        <div class="form-group">
-                            <label>Commune</label>
-                            <input type="text" id="adr-commune" required placeholder="Ex: Kamina">
-                        </div>
-                        <div class="form-group">
-                            <label>Quartier</label>
-                            <input type="text" id="adr-quartier" required placeholder="Ex: Centre-ville">
-                        </div>
-                    </div>
-
-                    <h2 style="margin-top:30px;">Mode de règlement</h2>
-                    <div class="payment-methods-grid">
-                        <label class="payment-method-card">
-                            <input type="radio" name="payment" value="mobile_money" id="pay-mobile" checked>
-                            <div>
-                                <span class="method-title">Mobile Money</span>
-                                <span class="method-desc">M-Pesa, Airtel Money</span>
-                            </div>
-                        </label>
-                        <label class="payment-method-card">
-                            <input type="radio" name="payment" value="cash" id="pay-cash">
-                            <div>
-                                <span class="method-title">Paiement à la livraison</span>
-                                <span class="method-desc">Cash à l'agence / point de retrait</span>
-                            </div>
-                        </label>
-                    </div>
-
-                    <div class="operators-box" id="mobile-operators-section">
-                        <h3>Sélectionnez votre opérateur congolais :</h3>
-                        <div class="operators-grid">
-                            <label><input type="radio" name="operator" value="MPESA" checked><span class="operator-label">M-Pesa (Vodacom)</span></label>
-                            <label><input type="radio" name="operator" value="AIRTEL"><span class="operator-label">Airtel Money</span></label>
-                            <label><input type="radio" name="operator" value="ORANGE"><span class="operator-label">Orange Money</span></label>
-                        </div>
-                    </div>
-                    <button type="submit" class="confirm-order-btn" style="width:100%; margin-top:20px;">Confirmer l'achat</button>
-                </form>
-            </div>
-            
-            <div class="checkout-summary-section">
-                <h2>Résumé de la commande</h2>
-                <div id="checkout-summary-items"></div>
-                <hr class="summary-divider">
-                <div class="summary-total-box">
-                    <div class="summary-row"><span>Sous-total</span><span id="summary-subtotal">0 $</span></div>
-                    <div class="summary-row"><span>Frais de livraison</span><span style="color:var(--accent); font-weight:700;">Gratuit</span></div>
-                    <hr class="summary-divider">
-                    <div class="summary-row total"><span>Montant à payer</span><span id="summary-total">0 $</span></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-admin" class="app-screen" style="display: none;">
-        <div class="admin-layout">
-            <div class="admin-control-panel">
-                <h2>Espace d'Administration Général</h2>
-                
-                <div class="admin-category-selectors">
-                    <button class="admin-tab-btn active" id="tab-computers">🖥️ Ordinateurs</button>
-                    <button class="admin-tab-btn" id="tab-smartphones">📱 Smartphones</button>
-                    <button class="admin-tab-btn" id="tab-accessories">🔌 Accessoires</button>
-                    <button class="admin-tab-btn" id="tab-orders" style="background:var(--accent); color:white;">📦 Commandes Clients</button>
-                </div>
-
-                <div id="admin-sub-products">
-                    <div class="admin-add-box">
-                        <h3 id="form-admin-title">Ajouter un produit dans : Ordinateurs</h3>
-                        <form id="admin-product-form" style="display:grid; gap:12px; margin-top:10px;">
-                            <input type="text" id="admin-p-name" placeholder="Nom complet du matériel (Ex: HP ProBook 450 G8)" required style="padding:10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-main);">
-                            <input type="text" id="admin-p-specs" placeholder="Spécifications techniques (Core i5, 16GB RAM, 512GB SSD)" required style="padding:10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-main);">
-                            <input type="number" id="admin-p-price" placeholder="Prix de vente en dollar ($)" required style="padding:10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-main);">
-                            <div style="display:flex; gap:10px;">
-                                <input type="url" id="admin-p-image" placeholder="Lien URL de l'image du produit" required style="flex:1; padding:10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-body); color:var(--text-main);">
-                                <button type="button" id="admin-ia-suggest-img" style="padding:0 10px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px;">💡 Aide Image IA</button>
-                            </div>
-                            <button type="submit" class="add-btn-large">Sauvegarder et publier sur le catalogue</button>
-                        </form>
-                    </div>
-                    <h3>Articles actuellement en stock</h3>
-                    <div class="admin-products-list" id="admin-products-list-container"></div>
-                </div>
-
-                <div id="admin-sub-orders" style="display:none;">
-                    <h3>Liste des commandes clients à traiter</h3>
-                    <div id="admin-orders-container" style="display:flex; flex-direction:column; gap:15px; margin-top:15px;"></div>
-                </div>
-            </div>
-
-            <div class="admin-users-panel">
-                <h2>Analyse & Comptes</h2>
-                <div class="admin-add-box" style="margin-top:15px; background:rgba(0,173,181,0.05);">
-                    <h3 style="margin-bottom:8px;">📊 Rapport Comportemental IA</h3>
-                    <div id="admin-ia-analytics" style="font-size:12px; color:var(--text-muted); line-height:1.5;">Analyse en cours...</div>
-                </div>
-                <h3>Utilisateurs enregistrés</h3>
-                <div class="users-list-wrapper" id="admin-users-container"></div>
-            </div>
-        </div>
-    </div>
-
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
     <div class="cart-sidebar" id="cart-sidebar">
         <div class="cart-sidebar-header">
-            <h2>Mon Panier</h2>
+            <h3>Mon Panier</h3>
             <button class="close-btn" id="close-cart-btn">&times;</button>
         </div>
         <div class="cart-items" id="cart-items-container"></div>
         <div class="cart-footer">
             <div class="total-row"><span>Total :</span><span id="cart-total">0 $</span></div>
-            <button class="checkout-btn" id="proceed-to-checkout-btn">Passer à la caisse</button>
+            <button class="checkout-btn" id="proceed-to-checkout-btn">Passer la Commande</button>
         </div>
     </div>
 
-    <button id="ia-chat-toggle">🤖 Aide IA</button>
-    <div id="ia-chat-box" style="display:none;">
-        <div id="ia-chat-header"><span>Assistant Virtuel TechShop</span><button id="ia-chat-close">&times;</button></div>
-        <div id="ia-chat-messages"></div>
-        <div id="ia-chat-input-area">
-            <input type="text" id="ia-chat-input" placeholder="Posez votre question sur notre stock...">
-            <button id="ia-chat-send">▶</button>
+    <main id="screen-home" class="app-screen">
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Rechercher un ordinateur, marque, specs...">
+        </div>
+        <div class="categories-container">
+            <button class="filter-btn active" data-category="tous">Tous les matériels</button>
+            <button class="filter-btn" data-category="Ordinateurs">Ordinateurs</button>
+            <button class="filter-btn" data-category="Smartphones">Smartphones</button>
+            <button class="filter-btn" data-category="Accessoires">Accessoires</button>
+        </div>
+        <div class="products-grid" id="products-container"></div>
+    </main>
+
+    <main id="screen-auth" class="app-screen" style="display:none;">
+        <div class="auth-body">
+            <div class="auth-container">
+                <h2 id="auth-title">Connexion</h2>
+                <form id="auth-form" style="margin-top:20px;">
+                    <div class="form-group">
+                        <label>Adresse E-mail :</label>
+                        <input type="email" id="auth-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mot de passe :</label>
+                        <input type="password" id="auth-password" required>
+                    </div>
+                    <button type="submit" class="checkout-btn" id="auth-submit-btn" style="margin-top:10px;">Se connecter</button>
+                </form>
+                <div class="auth-switch"><p id="link-switch-auth"><a href="#">Créer un compte client</a></p></div>
+            </div>
+        </div>
+    </main>
+
+    <main id="screen-checkout" class="app-screen" style="display:none;">
+        <div class="checkout-layout">
+            <div class="checkout-form-section">
+                <h2>Informations de Livraison</h2>
+                <form id="checkout-form">
+                    <div class="form-group"><label>Nom Complet du Destinataire :</label><input type="text" id="nom" required></div>
+                    <div class="form-group">
+                        <label>Numéro de Téléphone (Airtel/Vodacom/Orange) :</label>
+                        <div class="phone-input-wrapper"><span class="phone-prefix">+243</span><input type="number" id="telephone" placeholder="972177681" required></div>
+                    </div>
+                    <div class="form-group"><label>Adresse Complète de Livraison (Quartier/Avenue/Numéro à Kamina) :</label><input type="text" id="adr-commune" placeholder="Ex: Q. Centre-ville, Av. Université, N°12" required></div>
+                    
+                    <h2 style="margin-top:20px;">Mode de Paiement Intégré</h2>
+                    <div class="payment-methods-grid">
+                        <label class="payment-method-card">
+                            <input type="radio" name="payment" value="mobile_money" id="pay-mobile" checked>
+                            <div><span class="method-title">Mobile Money (RDC)</span><span class="method-desc">Push PIN Automatique</span></div>
+                        </label>
+                        <label class="payment-method-card">
+                            <input type="radio" name="payment" value="cash" id="pay-cash">
+                            <div><span class="method-title">Paiement à la Livraison</span><span class="method-desc">Cash physique à Kamina</span></div>
+                        </label>
+                    </div>
+                    <button type="submit" class="confirm-order-btn" style="width:100%;">Confirmer et Envoyer</button>
+                </form>
+            </div>
+            <div class="checkout-summary-section">
+                <h3>Résumé des articles</h3>
+                <div id="checkout-summary-items" style="margin-top:15px;"></div>
+                <div class="summary-total-box">
+                    <div class="summary-row"><span>Sous-total :</span><span id="summary-subtotal">0 $</span></div>
+                    <hr class="summary-divider">
+                    <div class="summary-row total"><span>Montant Total :</span><span id="summary-total">0 $</span></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="screen-admin" class="app-screen" style="display:none;">
+        <div class="admin-layout">
+            <div class="admin-section">
+                <h2>🛒 Flux des Commandes Clients Reçues</h2>
+                <div id="admin-orders-container" style="margin-top:15px; max-height:400px; overflow-y:auto;"></div>
+            </div>
+            <div class="admin-section">
+                <h2>📦 Gestion du Catalogue Matériels</h2>
+                <div class="admin-category-selectors">
+                    <button class="admin-tab-btn active" id="tab-computers">Ordinateurs</button>
+                    <button class="admin-tab-btn" id="tab-smartphones">Smartphones</button>
+                    <button class="admin-tab-btn" id="tab-accessories">Accessoires</button>
+                </div>
+                <form id="admin-product-form" class="admin-add-box">
+                    <h3 id="form-admin-title">Ajouter un produit dans : Ordinateurs</h3>
+                    <div class="form-group"><label>Désignation / Modèle :</label><input type="text" id="admin-p-name" required></div>
+                    <div class="form-group"><label>Spécifications Techniques :</label><input type="text" id="admin-p-specs" placeholder="RAM, Stockage, Processeur..." required></div>
+                    <div class="form-group"><label>Prix de vente ($) :</label><input type="number" id="admin-p-price" required></div>
+                    <div class="form-group"><label>Lien Web de la Photo (URL) :</label><input type="url" id="admin-p-image" placeholder="https://..." required></div>
+                    <button type="submit" class="add-btn-large" style="width:100%; padding:10px; cursor:pointer;">Enregistrer sur le Cloud</button>
+                </form>
+                <h3>Articles en ligne dans cette catégorie :</h3>
+                <div class="admin-products-list" id="admin-products-list-container"></div>
+            </div>
+            <div class="admin-section">
+                <h2>👤 Comptes Utilisateurs Enregistrés</h2>
+                <div id="admin-users-container" class="users-list-wrapper"></div>
+            </div>
+        </div>
+    </main>
+
+    <button class="ai-chat-toggle" id="ai-toggle-btn">✨</button>
+    <div class="ai-chat-window" id="ai-chat-window">
+        <div class="ai-chat-header">
+            <span>🤖 Assistant TechShop (IA)</span>
+            <button id="ai-close-btn" style="background:none; border:none; color:white; font-size:16px; cursor:pointer;">&times;</button>
+        </div>
+        <div class="ai-chat-messages" id="ai-chat-messages">
+            <div class="msg-bubble ai">Bonjour ! Je suis l'IA de TechShop. Quel matériel informatique recherchez-vous aujourd'hui ? Je connais notre stock en temps réel.</div>
+        </div>
+        <div class="ai-chat-input-area">
+            <input type="text" id="ai-input" placeholder="Posez votre question informatique...">
+            <button id="ai-send-btn">Envoyer</button>
         </div>
     </div>
 
+    <script type="module" src="app.js"></script>
 </body>
 </html>
