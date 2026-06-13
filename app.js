@@ -1,3 +1,6 @@
+// =================================================================
+// 1. CONFIGURATION & INITIALISATION DE FIREBASE & GEMINI MODULES
+// =================================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -15,14 +18,22 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Clé API Gemini du Client
+const GEMINI_API_KEY = "AQ.Ab8RN6LlebEj3dVD23jlUJEeWR3vfgYlz6a6i_sHUPHyd4q7aw"; 
+
+// =================================================================
+// 2. ÉTATS GLOBAUX
+// =================================================================
 let CATALOGUE = [];
 let PANIER = JSON.parse(localStorage.getItem('panier')) || [];
 let categorieActiveClient = "tous";
 let categorieActiveAdmin = "Ordinateurs";
 let modeInscription = false;
 let utilisateurConnecte = null;
-let vueActiveAdmin = "produits"; // ou "commandes"
 
+// =================================================================
+// 3. SYSTEME DE ROUTAGE
+// =================================================================
 function naviguerVers(idEcran) {
     fermerPanier();
     document.querySelectorAll('.app-screen').forEach(screen => screen.style.display = 'none');
@@ -33,11 +44,14 @@ function naviguerVers(idEcran) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// =================================================================
+// 4. CHARGEMENT ET ATTACHE DES EVENEMENTS (DOM)
+// =================================================================
 window.addEventListener('DOMContentLoaded', () => {
     const logo = document.getElementById('main-logo-btn');
     if (logo) logo.addEventListener('click', () => naviguerVers('screen-home'));
 
-    // Événements d'ouverture manuelle du panier
+    // Panier Contrôles (Ouverture stricte au Clic uniquement)
     const openCartBtn = document.getElementById('open-cart-btn');
     const closeCartBtn = document.getElementById('close-cart-btn');
     const overlay = document.getElementById('sidebar-overlay');
@@ -48,7 +62,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const proceedBtn = document.getElementById('proceed-to-checkout-btn');
     if (proceedBtn) {
         proceedBtn.addEventListener('click', () => {
-            if (PANIER.length === 0) { alert("Votre panier est vide !"); return; }
+            if (PANIER.length === 0) return alert("Votre panier est vide !");
             if (!utilisateurConnecte) {
                 alert("Veuillez vous connecter pour valider votre commande.");
                 modeInscription = false;
@@ -61,23 +75,16 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Authentification & Formulaires
-    const authForm = document.getElementById('auth-form');
-    if (authForm) authForm.addEventListener('submit', gererSoumissionAuth);
+    // Gestion formulaires
+    document.getElementById('auth-form')?.addEventListener('submit', gererSoumissionAuth);
+    document.getElementById('checkout-form')?.addEventListener('submit', validerCommandeFinale);
+    document.getElementById('admin-product-form')?.addEventListener('submit', ajouterNouveauProduitAdmin);
 
-    const linkSwitch = document.getElementById('link-switch-auth');
-    if (linkSwitch) {
-        linkSwitch.addEventListener('click', (e) => {
-            e.preventDefault();
-            modeInscription = !modeInscription;
-            basculerFormulaireAuth();
-        });
-    }
+    document.getElementById('link-switch-auth')?.addEventListener('click', (e) => {
+        e.preventDefault(); modeInscription = !modeInscription; basculerFormulaireAuth();
+    });
 
-    const checkoutForm = document.getElementById('checkout-form');
-    if (checkoutForm) checkoutForm.addEventListener('submit', validerCommandeFinale);
-
-    // Filtrage et Recherche Client
+    // Catégories Client
     document.querySelectorAll('.categories-container .filter-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.categories-container .filter-btn').forEach(b => b.classList.remove('active'));
@@ -87,62 +94,37 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) searchInput.addEventListener('input', filtrerRecherche);
+    document.getElementById('search-input')?.addEventListener('input', filtrerRecherche);
 
-    // Gestion des Onglets Admin (Produits vs Commandes)
+    // Onglets Espace Admin
     const tabsAdmin = { 'tab-computers': 'Ordinateurs', 'tab-smartphones': 'Smartphones', 'tab-accessories': 'Accessoires' };
     Object.keys(tabsAdmin).forEach(idTab => {
-        const tabEl = document.getElementById(idTab);
-        if (tabEl) {
-            tabEl.addEventListener('click', function() {
-                vueActiveAdmin = "produits";
-                document.getElementById('admin-sub-products').style.display = 'block';
-                document.getElementById('admin-sub-orders').style.display = 'none';
-                document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                categorieActiveAdmin = tabsAdmin[idTab];
-                document.getElementById('form-admin-title').textContent = "Ajouter un produit dans : " + categorieActiveAdmin;
-                afficherProduitsAdmin();
-            });
-        }
-    });
-
-    const tabOrders = document.getElementById('tab-orders');
-    if (tabOrders) {
-        tabOrders.addEventListener('click', function() {
-            vueActiveAdmin = "commandes";
-            document.getElementById('admin-sub-products').style.display = 'none';
-            document.getElementById('admin-sub-orders').style.display = 'block';
+        document.getElementById(idTab)?.addEventListener('click', function() {
             document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            chargerCommandesEnDirectAdmin();
+            categorieActiveAdmin = tabsAdmin[idTab];
+            const t = document.getElementById('form-admin-title');
+            if (t) t.textContent = "Ajouter un produit dans : " + categorieActiveAdmin;
+            afficherProduitsAdmin();
         });
-    }
+    });
 
-    const adminProductForm = document.getElementById('admin-product-form');
-    if (adminProductForm) adminProductForm.addEventListener('submit', ajouterNouveauProduitAdmin);
-
-    // --- INTERFACE & COMPORTEMENT DE L'IA ---
-    const chatToggle = document.getElementById('ia-chat-toggle');
-    const chatBox = document.getElementById('ia-chat-box');
-    const chatClose = document.getElementById('ia-chat-close');
-    const chatSend = document.getElementById('ia-chat-send');
-    const chatInput = document.getElementById('ia-chat-input');
-
-    if (chatToggle) chatToggle.addEventListener('click', () => chatBox.style.display = 'flex');
-    if (chatClose) chatClose.addEventListener('click', () => chatBox.style.display = 'none');
-    if (chatSend) chatSend.addEventListener('click', executerChatIA);
-    if (chatInput) chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') executerChatIA(); });
-
-    const btnSuggestImg = document.getElementById('admin-ia-suggest-img');
-    if (btnSuggestImg) btnSuggestImg.addEventListener('click', aideImageIA);
+    // Écouteurs de l'Intelligence Artificielle (Gemini Chatbot UI)
+    document.getElementById('ai-toggle-btn')?.addEventListener('click', () => {
+        const win = document.getElementById('ai-chat-window');
+        win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
+    });
+    document.getElementById('ai-close-btn')?.addEventListener('click', () => {
+        document.getElementById('ai-chat-window').style.display = 'none';
+    });
+    document.getElementById('ai-send-btn')?.addEventListener('click', envoyerMessageIA);
+    document.getElementById('ai-input')?.addEventListener('keypress', (e) => { if(e.key === 'Enter') envoyerMessageIA(); });
 
     // Mode Sombre
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
+    const themeBtn = document.getElementById('theme-toggle');
+    if (themeBtn) {
         if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-        themeToggle.addEventListener('click', () => {
+        themeBtn.addEventListener('click', () => {
             document.body.classList.toggle('light-mode');
             localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
         });
@@ -152,7 +134,9 @@ window.addEventListener('DOMContentLoaded', () => {
     chargerCatalogueDepuisCloud();
 });
 
-// SURVEILLANCE SESSION AUTH
+// =================================================================
+// 5. SESSION MONITORING & CHARGEMENT COMMANDES ADMIN
+// =================================================================
 onAuthStateChanged(auth, async (user) => {
     const authBtn = document.getElementById('auth-nav-btn');
     const adminBadge = document.getElementById('admin-badge');
@@ -165,7 +149,9 @@ onAuthStateChanged(auth, async (user) => {
                 if (adminBadge) adminBadge.style.display = 'inline-block';
                 naviguerVers('screen-admin');
                 chargerUtilisateursAdmin();
-                analyserComportementIA();
+                chargerCommandesAdmin(); // Charger le flux des commandes reçues
+            } else {
+                if (adminBadge) adminBadge.style.display = 'none';
             }
         } catch (e) { console.error(e); }
     } else {
@@ -175,20 +161,19 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-const authNavBtn = document.getElementById('auth-nav-btn');
-if (authNavBtn) {
-    authNavBtn.addEventListener('click', () => {
+if (document.getElementById('auth-nav-btn')) {
+    document.getElementById('auth-nav-btn').addEventListener('click', () => {
         if (utilisateurConnecte) {
-            signOut(auth).then(() => { alert("Session close."); naviguerVers('screen-home'); });
+            signOut(auth).then(() => { alert("Déconnexion réussie."); naviguerVers('screen-home'); });
         } else {
-            modeInscription = false;
-            basculerFormulaireAuth();
-            naviguerVers('screen-auth');
+            modeInscription = false; basculerFormulaireAuth(); naviguerVers('screen-auth');
         }
     });
 }
 
-// CATALOGUE ET PANIER
+// =================================================================
+// 6. SYNCHRONISATION FIRESTORE ET INSTANCIATION ALIBABA VIEW
+// =================================================================
 async function chargerCatalogueDepuisCloud() {
     try {
         const querySnapshot = await getDocs(collection(db, "produits"));
@@ -203,61 +188,56 @@ function afficherCatalogueClient() {
     const container = document.getElementById('products-container');
     if (!container) return;
     container.innerHTML = "";
-    const produitsFiltres = CATALOGUE.filter(p => categorieActiveClient === "tous" || p.category === categorieActiveClient);
-    
-    if (produitsFiltres.length === 0) {
-        container.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:30px;">Aucun produit disponible.</p>`;
+    const f = CATALOGUE.filter(p => categorieActiveClient === "tous" || p.category === categorieActiveClient);
+    if (f.length === 0) {
+        container.innerHTML = `<p style="grid-column:1/-1;text-align:center;padding:30px;color:var(--text-muted);">Aucun produit disponible.</p>`;
         return;
     }
-
-    produitsFiltres.forEach(p => {
-        container.innerHTML += `
-            <div class="product-card">
-                <img src="${p.imageUrl || 'https://via.placeholder.com/150'}" alt="${p.name}" class="product-image">
-                <div class="product-info">
-                    <h3 class="product-title">${p.name}</h3>
-                    <p class="product-specs">${p.specs || ''}</p>
-                    <div class="product-footer">
-                        <span class="product-price">${p.price} $</span>
-                        <button class="add-to-cart-btn" onclick="window.ajouterElementPanier('${p.id}')">🛒</button>
-                    </div>
+    f.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            <img src="${p.imageUrl || 'https://via.placeholder.com/150'}" class="product-image">
+            <div class="product-info">
+                <h3 class="product-title">${p.name}</h3>
+                <p class="product-specs">${p.specs || ''}</p>
+                <div class="product-footer">
+                    <span class="product-price">${p.price} $</span>
+                    <button class="add-to-cart-btn" data-id="${p.id}">🛒+ </button>
                 </div>
-            </div>`;
+            </div>
+        `;
+        container.appendChild(card);
     });
+    container.querySelectorAll('.add-to-cart-btn').forEach(b => b.addEventListener('click', function() { ajouterAuPanier(this.getAttribute('data-id')); }));
 }
 
-function filtrerRecherche(e) {
-    const cible = e.target.value.toLowerCase();
+function filtrerRecherche() {
+    const c = this.value.toLowerCase();
     const container = document.getElementById('products-container');
     if (!container) return;
     container.innerHTML = "";
-    const produitsFiltres = CATALOGUE.filter(p => p.name.toLowerCase().includes(cible) || (p.specs && p.specs.toLowerCase().includes(cible)));
-    
-    produitsFiltres.forEach(p => {
-        container.innerHTML += `
-            <div class="product-card">
-                <img src="${p.imageUrl || 'https://via.placeholder.com/150'}" alt="${p.name}" class="product-image">
-                <div class="product-info">
-                    <h3 class="product-title">${p.name}</h3>
-                    <p class="product-specs">${p.specs || ''}</p>
-                    <div class="product-footer">
-                        <span class="product-price">${p.price} $</span>
-                        <button class="add-to-cart-btn" onclick="window.ajouterElementPanier('${p.id}')">🛒</button>
-                    </div>
+    CATALOGUE.filter(p => p.name.toLowerCase().includes(c) || p.specs?.toLowerCase().includes(c)).forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            <img src="${p.imageUrl || 'https://via.placeholder.com/150'}" class="product-image">
+            <div class="product-info">
+                <h3 class="product-title">${p.name}</h3>
+                <p class="product-specs">${p.specs || ''}</p>
+                <div class="product-footer">
+                    <span class="product-price">${p.price} $</span>
+                    <button class="add-to-cart-btn" data-id="${p.id}">🛒+</button>
                 </div>
-            </div>`;
+            </div>
+        `;
+        container.appendChild(card);
     });
 }
 
-window.ajouterElementPanier = function(id) {
-    const itemStock = CATALOGUE.find(p => p.id === id);
-    if (!itemStock) return;
-    const existant = PANIER.find(item => item.id === id);
-    if (existant) { existant.quantite++; } else { PANIER.push({ ...itemStock, quantite: 1 }); }
-    synchroniserPanier();
-    // CORRECTION : Plus d'ouverture automatique du panier ici ! Le bouton reste discret.
-};
-
+// =================================================================
+// 7. PANIER CONTROLE STRICTE
+// =================================================================
 function ouvrirPanier() {
     document.getElementById('cart-sidebar').classList.add('open');
     document.getElementById('sidebar-overlay').classList.add('open');
@@ -266,179 +246,160 @@ function fermerPanier() {
     document.getElementById('cart-sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
 }
+function ajouterAuPanier(id) {
+    const item = CATALOGUE.find(p => p.id === id);
+    if (!item) return;
+    const ex = PANIER.find(i => i.id === id);
+    if (ex) { ex.quantite++; } else { PANIER.push({ ...item, quantite: 1 }); }
+    synchroniserPanier();
+    // Le panier reste fermé lors d'un ajout, s'affiche uniquement lors du clic sur l'icône de navigation.
+}
 
 function synchroniserPanier() {
     localStorage.setItem('panier', JSON.stringify(PANIER));
-    const totalItems = PANIER.reduce((sum, item) => sum + item.quantite, 0);
-    const prixTotal = PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0);
-    if (document.getElementById('cart-count')) document.getElementById('cart-count').textContent = totalItems;
-    if (document.getElementById('cart-total')) document.getElementById('cart-total').textContent = prixTotal + " $";
-
+    const count = PANIER.reduce((s, i) => s + i.quantite, 0);
+    const total = PANIER.reduce((s, i) => s + (i.price * i.quantite), 0);
+    if (document.getElementById('cart-count')) document.getElementById('cart-count').textContent = count;
+    if (document.getElementById('cart-total')) document.getElementById('cart-total').textContent = total + " $";
     const container = document.getElementById('cart-items-container');
     if (!container) return;
     if (PANIER.length === 0) {
-        container.innerHTML = `<p class="empty-cart-msg">Le panier est vide.</p>`;
+        container.innerHTML = `<p class="empty-cart-msg">Votre panier est vide.</p>`;
     } else {
         container.innerHTML = "";
         PANIER.forEach(item => {
-            container.innerHTML += `
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
-                    <div style="flex:1;">
-                        <h4 style="margin:0; font-size:13px;">${item.name}</h4>
-                        <small style="color:var(--primary); font-weight:600;">${item.price}$ x ${item.quantite}</small>
-                    </div>
-                    <div style="display:flex; gap:5px;">
-                        <button style="padding:2px 6px; cursor:pointer;" onclick="window.modifierQte('${item.id}', -1)">-</button>
-                        <button style="padding:2px 6px; cursor:pointer;" onclick="window.modifierQte('${item.id}', 1)">+</button>
-                    </div>
-                </div>`;
+            const div = document.createElement('div');
+            div.className = 'cart-item';
+            div.innerHTML = `
+                <div><h4 style="font-size:12px;margin:0;">${item.name}</h4><small>${item.price}$ x ${item.quantite}</small></div>
+                <div>
+                    <button class="qty-btn" onclick="window.modQ('${item.id}', -1)">-</button>
+                    <button class="qty-btn" onclick="window.modQ('${item.id}', 1)">+</button>
+                </div>
+            `;
+            container.appendChild(div);
         });
     }
 }
 
-window.modifierQte = function(id, mod) {
-    const item = PANIER.find(i => i.id === id);
-    if (!item) return;
-    item.quantite += mod;
-    if (item.quantite <= 0) PANIER = PANIER.filter(i => i.id !== id);
+window.modQ = function(id, m) {
+    const i = PANIER.find(x => x.id === id); if (!i) return;
+    i.quantite += m; if (i.quantite <= 0) PANIER = PANIER.filter(x => x.id !== id);
     synchroniserPanier();
 };
 
-// CHECKOUT & EXPÉDITION 
+// =================================================================
+// 8. SOUMISSION DES COMMANDES ET SUIVI ADMINISTRATEUR
+// =================================================================
 function preparerEcranCheckout() {
-    const summaryContainer = document.getElementById('checkout-summary-items');
-    if (!summaryContainer) return;
-    summaryContainer.innerHTML = "";
-    PANIER.forEach(item => {
-        summaryContainer.innerHTML += `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;"><span>${item.name} (x${item.quantite})</span><span>${item.price * item.quantite} $</span></div>`;
-    });
-    const total = PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0);
-    document.getElementById('summary-subtotal').textContent = total + " $";
-    document.getElementById('summary-total').textContent = total + " $";
+    const sc = document.getElementById('checkout-summary-items'); if (!sc) return;
+    sc.innerHTML = "";
+    PANIER.forEach(i => { sc.innerHTML += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>${i.name} (x${i.quantite})</span><span>${i.price * i.quantite} $</span></div>`; });
+    const t = PANIER.reduce((s, i) => s + (i.price * i.quantite), 0);
+    document.getElementById('summary-subtotal').textContent = t + " $";
+    document.getElementById('summary-total').textContent = t + " $";
 }
 
 async function validerCommandeFinale(e) {
     e.preventDefault();
-    const isMobile = document.getElementById('pay-mobile').checked;
-    const detailsCommande = {
+    const mode = document.querySelector('input[name="payment"]:checked').value;
+    const payload = {
         clientUid: utilisateurConnecte.uid,
         clientEmail: utilisateurConnecte.email,
         livraison: {
             nom: document.getElementById('nom').value,
             telephone: "+243" + document.getElementById('telephone').value,
-            commune: document.getElementById('adr-commune').value,
-            quartier: document.getElementById('adr-quartier').value
+            commune: document.getElementById('adr-commune').value
         },
         articles: PANIER,
-        montantTotal: PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0),
-        paiement: {
-            methode: isMobile ? "Mobile Money" : "Cash à la livraison",
-            operateur: isMobile ? document.querySelector('input[name="operator"]:checked').value : "N/A",
-            destinataireMarchand: "+243972177681",
-            statut: "En attente de validation"
-        },
+        montantTotal: PANIER.reduce((s, i) => s + (i.price * i.quantite), 0),
+        paiement: { methode: mode, statut: "En attente", destinataire: "+243972177681" },
         dateCommande: serverTimestamp()
     };
-
     try {
-        await addDoc(collection(db, "commandes"), detailsCommande);
-        alert(`Commande enregistrée ! Si paiement mobile sélectionné, transférez le montant de ${detailsCommande.montantTotal}$ vers le numéro marchand : +243972177681.`);
-        PANIER = [];
-        synchroniserPanier();
-        naviguerVers('screen-home');
+        await addDoc(collection(db, "commandes"), payload);
+        alert("Félicitations ! Votre commande a été transmise avec succès.");
+        PANIER = []; synchroniserPanier(); naviguerVers('screen-home');
     } catch (err) { alert(err.message); }
 }
 
-// LOGIQUE D'ADMINISTRATION COMPLÈTE (PRODUITS & VISIONNAGE DES COMMANDES)
-async function ajouterNouveauProduitAdmin(e) {
-    e.preventDefault();
-    const nouveau = {
-        name: document.getElementById('admin-p-name').value,
-        specs: document.getElementById('admin-p-specs').value,
-        price: parseInt(document.getElementById('admin-p-price').value) || 0,
-        imageUrl: document.getElementById('admin-p-image').value,
-        category: categorieActiveAdmin,
-        createdAt: new Date().getTime()
-    };
-    try {
-        await addDoc(collection(db, "produits"), nouveau);
-        alert("Matériel enregistré dans le Cloud !");
-        document.getElementById('admin-product-form').reset();
-        chargerCatalogueDepuisCloud();
-    } catch (err) { alert(err.message); }
-}
-
-function afficherProduitsAdmin() {
-    const container = document.getElementById('admin-products-list-container');
-    if (!container) return;
-    container.innerHTML = "";
-    const filtres = CATALOGUE.filter(p => p.category === categorieActiveAdmin);
-    filtres.forEach(p => {
-        container.innerHTML += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-body); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; font-size:13px;">
-                <div><strong>${p.name}</strong> - ${p.price} $</div>
-                <button style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="window.supprimerProduit('${p.id}')">Supprimer</button>
-            </div>`;
-    });
-}
-
-window.supprimerProduit = async function(id) {
-    if (confirm("Retirer cet article du stock ?")) {
-        try { await deleteDoc(doc(db, "produits", id)); chargerCatalogueDepuisCloud(); } catch(e) { alert(e.message); }
-    }
-};
-
-// --- NOUVELLE FONCTIONNALITÉ : CHARGEMENT ET TRAITEMENT DES COMMANDES CLIENTS EN TEMPS RÉEL ---
-async function chargerCommandesEnDirectAdmin() {
+// Fonction de lecture des commandes pour l'admin
+async function chargerCommandesAdmin() {
     const container = document.getElementById('admin-orders-container');
     if (!container) return;
-    container.innerHTML = "<p style='color:var(--text-muted); font-size:13px;'>Récupération des bordereaux de commande...</p>";
-
+    container.innerHTML = "<p style='color:var(--text-muted);font-size:12px;'>Flux des transactions en cours...</p>";
     try {
-        const snapshot = await getDocs(collection(db, "commandes"));
+        const snap = await getDocs(collection(db, "commandes"));
         container.innerHTML = "";
-        if (snapshot.empty) {
-            container.innerHTML = "<p style='color:var(--text-muted); font-size:13px;'>Aucune commande passée pour le moment.</p>";
-            return;
-        }
-
-        snapshot.forEach(docObj => {
-            const cmd = docObj.data();
-            let listeArticlesHTML = "";
-            cmd.articles.forEach(art => {
-                listeArticlesHTML += `<li>📦 <strong>${art.name}</strong> (x${art.quantite}) - ${art.price}$</li>`;
-            });
-
-            container.innerHTML += `
-                <div style="background:var(--bg-body); border:1px solid var(--border); padding:15px; border-radius:10px; font-size:13px; line-height:1.4;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid var(--border); padding-bottom:5px;">
-                        <span style="color:var(--primary); font-weight:700;">Client : ${cmd.livraison.nom}</span>
-                        <span style="font-weight:700; color:var(--accent);">${cmd.montantTotal} $</span>
-                    </div>
-                    <p>📞 <strong>Téléphone :</strong> ${cmd.livraison.telephone}</p>
-                    <p>📍 <strong>Adresse :</strong> C/ ${cmd.livraison.commune}, Q/ ${cmd.livraison.quartier}</p>
-                    <p>💳 <strong>Règlement :</strong> ${cmd.paiement.methode} (${cmd.paiement.operateur})</p>
-                    <div style="margin-top:8px; padding-left:15px; background:var(--bg-card); border-radius:6px; padding:8px;">
-                        <ul style="list-style:none; padding:0; margin:0;">${listeArticlesHTML}</ul>
-                    </div>
-                </div>`;
+        if (snap.empty) { container.innerHTML = "<p style='color:var(--text-muted);'>Aucune commande enregistrée pour le moment.</p>"; return; }
+        snap.forEach(doc => {
+            const c = doc.data();
+            let listItems = c.articles.map(a => `${a.name} (x${a.quantite})`).join(', ');
+            const box = document.createElement('div');
+            box.className = 'commande-box';
+            box.innerHTML = `
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:5px;margin-bottom:5px;">
+                    <strong>Client : ${c.livraison.nom}</strong>
+                    <span style="color:var(--primary);font-weight:700;">${c.montantTotal} $</span>
+                </div>
+                <div>📞 Tél : ${c.livraison.telephone} | 📍 Ville : ${c.livraison.commune}</div>
+                <div style="margin-top:4px;color:var(--text-muted);">📦 Articles : ${listItems}</div>
+                <div style="margin-top:4px;font-size:11px;">💳 Paiement : <span style="color:var(--accent);font-weight:bold;">${c.paiement.methode}</span></div>
+            `;
+            container.appendChild(box);
         });
-    } catch (e) { container.innerHTML = "<p style='color:#ef4444;'>Erreur de chargement des commandes.</p>"; }
+    } catch (err) { console.error(err); }
 }
 
-async function chargerUtilisateursAdmin() {
-    const container = document.getElementById('admin-users-container');
-    if (!container) return;
+// =================================================================
+// 9. RECOMMANDATION INTELLIGENTE (INTEGRATION GEMINI IA)
+// =================================================================
+async function envoyerMessageIA() {
+    const inputEl = document.getElementById('ai-input');
+    const msgContainer = document.getElementById('ai-chat-messages');
+    const texteClient = inputEl.value.trim();
+    if (!texteClient) return;
+
+    // Affichage bulle utilisateur
+    msgContainer.innerHTML += `<div class="msg-bubble user">${texteClient}</div>`;
+    inputEl.value = "";
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+
+    // Bulle de chargement IA
+    const aiLoadingId = "ai-loading-" + Date.now();
+    msgContainer.innerHTML += `<div class="msg-bubble ai" id="${aiLoadingId}">En attente de réponse...</div>`;
+
+    // Structuration du contexte des stocks pour Gemini
+    const stockContexte = CATALOGUE.map(p => `Produit: ${p.name}, Catégorie: ${p.category}, Prix: ${p.price}$, Specs: ${p.specs}`).join("\n");
+    
+    const promptSysteme = `
+        Tu es l'assistant de vente virtuel intelligent de la boutique informatique TechShop située à Kamina. 
+        Voici l'état en temps réel de notre stock d'équipements :
+        ${stockContexte}
+        
+        Réponds de manière cordiale, professionnelle et concise en français aux questions des clients. Aide-les à faire le meilleur choix technologique uniquement à partir des produits présents dans notre liste ci-dessus. Si un composant n'est pas disponible, propose une alternative proche de notre stock.
+        Question du client : ${texteClient}
+    `;
+
     try {
-        const snapshot = await getDocs(collection(db, "utilisateurs"));
-        container.innerHTML = "";
-        snapshot.forEach(doc => {
-            const u = doc.data();
-            container.innerHTML += `<div style="padding:6px; border-bottom:1px solid var(--border); font-size:12px;">👤 ${u.email} - <strong>${u.role || 'client'}</strong></div>`;
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptSysteme }] }] })
         });
-    } catch (e) { console.error(e); }
+        const data = await response.json();
+        const reponseIA = data.candidates[0].content.parts[0].text;
+        
+        document.getElementById(aiLoadingId).textContent = reponseIA;
+    } catch (e) {
+        document.getElementById(aiLoadingId).textContent = "Désolé, une erreur de communication est survenue avec le module d'intelligence artificielle.";
+    }
+    msgContainer.scrollTop = msgContainer.scrollHeight;
 }
 
+// =================================================================
+// 10. AUTH & FONCTIONS COMPLEMENTAIRES ADMIN
+// =================================================================
 function basculerFormulaireAuth() {
     document.getElementById('auth-title').textContent = modeInscription ? "Créer un compte" : "Connexion";
     document.getElementById('auth-submit-btn').textContent = modeInscription ? "S'inscrire" : "Se connecter";
@@ -450,68 +411,50 @@ async function gererSoumissionAuth(e) {
     const pass = document.getElementById('auth-password').value;
     try {
         if (modeInscription) {
-            const credential = await createUserWithEmailAndPassword(auth, email, pass);
-            await setDoc(doc(db, "utilisateurs", credential.user.uid), { email: email, role: "client", createdAt: serverTimestamp() });
-            alert("Compte client initialisé !");
+            const cred = await createUserWithEmailAndPassword(auth, email, pass);
+            await setDoc(doc(db, "utilisateurs", cred.user.uid), { email: email, role: "client", createdAt: serverTimestamp() });
+            alert("Compte client créé avec succès !");
         } else { await signInWithEmailAndPassword(auth, email, pass); }
-        document.getElementById('auth-form').reset();
-        naviguerVers('screen-home');
+        document.getElementById('auth-form').reset(); naviguerVers('screen-home');
     } catch (err) { alert(err.message); }
 }
 
-// --- INTELLIGENCE ARTIFICIELLE INTÉGRÉE (LOGIQUE ALGORITHMIQUE CLIENT & ADMIN) ---
-function executerChatIA() {
-    const inputEl = document.getElementById('ia-chat-input');
-    const msgContainer = document.getElementById('ia-chat-messages');
-    const texteClient = inputEl.value.trim();
-    if (!texteClient) return;
-
-    // Affichage message client
-    msgContainer.innerHTML += `<div style="text-align:right; margin-bottom:10px;"><span style="background:var(--primary); color:white; padding:6px 12px; border-radius:12px 12px 0 12px; display:inline-block; font-size:13px;">${texteClient}</span></div>`;
-    inputEl.value = "";
-
-    // Analyse algorithmique en temps réel par rapport au stock Firestore
-    setTimeout(() => {
-        let reponseIA = "Je suis l'assistant intelligent TechShop. Je parcours notre stock actuel à Kamina. Dites-moi si vous cherchez un ordinateur ou un smartphone particulier !";
-        const requeteLower = texteClient.toLowerCase();
-
-        if (requeteLower.includes("ordinateur") || requeteLower.includes("pc") || requeteLower.includes("laptop") || requeteLower.includes("travail")) {
-            const ordi = CATALOGUE.filter(p => p.category === "Ordinateurs");
-            if (ordi.length > 0) {
-                reponseIA = `En parcourant la base de données de notre boutique, je vous suggère l'ordinateur suivant disponible immédiatement : **${ordi[0].name}** (${ordi[0].specs}) pour un excellent tarif de ${ordi[0].price}$. Souhaitez-vous l'ajouter ?`;
-            } else { reponseIA = "Nous sommes actuellement en cours de réapprovisionnement pour les ordinateurs. L'administrateur ajoutera de nouvelles pièces sous peu !"; }
-        } else if (requeteLower.includes("telephone") || requeteLower.includes("smartphone") || requeteLower.includes("photo")) {
-            const phones = CATALOGUE.filter(p => p.category === "Smartphones");
-            if (phones.length > 0) {
-                reponseIA = `D'après nos stocks enregistrés, je vous conseille vivement le **${phones[0].name}** au prix de ${phones[0].price}$. C'est le modèle le plus performant disponible en magasin.`;
-            } else { reponseIA = "Aucun smartphone n'est répertorié en stock pour l'instant."; }
-        } else if (requeteLower.includes("prix") || requeteLower.includes("mora") || requeteLower.includes("moins cher")) {
-            if (CATALOGUE.length > 0) {
-                const trie = [...CATALOGUE].sort((a,b) => a.price - b.price);
-                reponseIA = `Le matériel informatique le plus abordable actuellement disponible dans notre catalogue est : **${trie[0].name}** affiché à seulement ${trie[0].price}$.`;
-            }
-        }
-
-        msgContainer.innerHTML += `<div style="text-align:left; margin-bottom:10px;"><span style="background:var(--bg-body); border:1px solid var(--border); padding:6px 12px; border-radius:12px 12px 12px 0; display:inline-block; font-size:13px; line-height:1.4;">🤖 ${reponseIA}</span></div>`;
-        msgContainer.scrollTop = msgContainer.scrollHeight;
-    }, 600);
+async function ajouterNouveauProduitAdmin(e) {
+    e.preventDefault();
+    const np = {
+        name: document.getElementById('admin-p-name').value,
+        specs: document.getElementById('admin-p-specs').value,
+        price: parseInt(document.getElementById('admin-p-price').value) || 0,
+        imageUrl: document.getElementById('admin-p-image').value,
+        category: categorieActiveAdmin,
+        createdAt: new Date().getTime()
+    };
+    try {
+        await addDoc(collection(db, "produits"), np);
+        alert("Produit ajouté avec succès !");
+        document.getElementById('admin-product-form').reset(); chargerCatalogueDepuisCloud();
+    } catch (err) { alert(err.message); }
 }
 
-// Fonction d'assistance IA pour l'administrateur
-function aideImageIA() {
-    const nomProduit = document.getElementById('admin-p-name').value;
-    if (!nomProduit) { alert("Veuillez d'abord saisir le nom du matériel pour que l'IA puisse générer un lien visuel."); return; }
-    // Génère automatiquement un lien propre d'illustration de matériel basé sur Unsplash Source sécurisé
-    const cleanQuery = encodeURIComponent(nomProduit);
-    const lienIA = `https://images.unsplash.com/photo-1593642632823-8f785ba67e45?q=80&w=500`; 
-    document.getElementById('admin-p-image').value = lienIA;
-    alert("🤖 L'IA a analysé le libellé et a injecté un lien d'image optimisé pour l'affichage catalogue !");
+function afficherProduitsAdmin() {
+    const lc = document.getElementById('admin-products-list-container'); if (!lc) return;
+    lc.innerHTML = "";
+    CATALOGUE.filter(p => p.category === categorieActiveAdmin).forEach(p => {
+        const row = document.createElement('div');
+        row.style = 'display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid var(--border);font-size:13px;';
+        row.innerHTML = `<div><strong>${p.name}</strong> - ${p.price}$</div><button style="background:#ef4444;color:white;border:none;padding:2px 6px;border-radius:4px;cursor:pointer;" onclick="window.delP('${p.id}')">Supprimer</button>`;
+        lc.appendChild(row);
+    });
 }
 
-function analyserComportementIA() {
-    const el = document.getElementById('admin-ia-analytics');
-    if (!el) return;
-    setTimeout(() => {
-        el.innerHTML = `🛒 <strong>Taux de conversion :</strong> Élevé<br>🔥 <strong>Catégorie recherchée :</strong> Ordinateurs portables de stockage SSD.<br>💡 <strong>Conseil IA :</strong> Les utilisateurs à Kamina consultent majoritairement les articles entre 300$ et 600$. Augmentez le stock sur cette tranche pour maximiser vos revenus de livraison.`;
-    }, 1000);
+window.delP = async function(id) {
+    if (confirm("Retirer ce produit ?")) { try { await deleteDoc(doc(db, "produits", id)); chargerCatalogueDepuisCloud(); } catch (e) { alert(e.message); } }
+};
+
+async function chargerUtilisateursAdmin() {
+    const c = document.getElementById('admin-users-container'); if (!c) return;
+    try {
+        const snap = await getDocs(collection(db, "utilisateurs")); c.innerHTML = "";
+        snap.forEach(doc => { const u = doc.data(); c.innerHTML += `<div style="padding:6px;border-bottom:1px solid var(--border);font-size:12px;">👤 ${u.email} - <strong>${u.role || 'client'}</strong></div>`; });
+    } catch (e) { console.error(e); }
 }
