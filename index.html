@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechShop | Premium Tech Store</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- REPOÈRE GLOBAL : BARRE DE NAVIGATION COMMUNE -->
+    <header>
+        <div class="logo" id="main-logo-btn" style="cursor: pointer;">Tech<span>Shop</span> <small id="admin-badge" class="badge-admin" style="display: none;">Admin</small></div>
+        <nav class="nav-right">
+            <button id="theme-toggle" class="icon-btn">🌓</button>
+            <button id="auth-nav-btn" class="login-btn">Connexion</button>
+            <div class="cart-icon" id="open-cart-btn">
+                <span>🛒</span>
+                <span class="cart-badge" id="cart-count">0</span>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ================================================================= -->
+    <!-- ÉCRAN 1 : CATALOGUE CLIENT (ACCUEIL)                              -->
+    <!-- ================================================================= -->
+    <main id="screen-home" class="app-screen">
+        <section class="search-container">
+            <input type="text" id="search-input" placeholder="🔍 Rechercher un ordinateur, un smartphone, un accessoire...">
+        </section>
+        <section class="categories-container">
+            <button class="filter-btn active" data-category="tous">Tout voir</button>
+            <button class="filter-btn" data-category="Ordinateurs">💻 Ordinateurs</button>
+            <button class="filter-btn" data-category="Smartphones">📱 Smartphones</button>
+            <button class="filter-btn" data-category="Accessoires">🎧 Accessoires</button>
+        </section>
+        <section class="products-grid" id="products-container"></section>
+    </main>
+
+    <!-- ================================================================= -->
+    <!-- ÉCRAN 2 : AUTHENTIFICATION (CONNEXION / INSCRIPTION)             -->
+    <!-- ================================================================= -->
+    <main id="screen-auth" class="app-screen auth-body" style="display: none;">
+        <div class="auth-container">
+            <h2 id="auth-title">Connexion</h2>
+            <p id="auth-subtitle" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px; text-align: center;">Connectez-vous pour finaliser vos achats</p>
+            
+            <form id="auth-form">
+                <div class="form-group">
+                    <label for="auth-email">Adresse Gmail</label>
+                    <input type="email" id="auth-email" placeholder="votrecompte@gmail.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="auth-password">Mot de passe</label>
+                    <input type="password" id="auth-password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="auth-submit-btn" class="confirm-order-btn" style="width: 100%;">Se connecter</button>
+            </form>
+            
+            <div class="auth-switch">
+                <p id="auth-switch-text">Pas encore de compte ? <a href="#" id="link-switch-auth">Créer un compte</a></p>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================================================================= -->
+    <!-- ÉCRAN 3 : CHECKOUT (VALIDATION DE COMMANDE)                       -->
+    <!-- ================================================================= -->
+    <main id="screen-checkout" class="app-screen checkout-layout" style="display: none;">
+        <section class="checkout-form-section">
+            <h2>Informations de Livraison</h2>
+            <form id="checkout-form">
+                <div class="form-group">
+                    <label for="nom">Nom complet</label>
+                    <input type="text" id="nom" placeholder="Ex: Jean Mukendi" required>
+                </div>
+                <div class="form-group">
+                    <label for="telephone">Numéro de téléphone</label>
+                    <div class="phone-input-wrapper">
+                        <span class="phone-prefix">+243</span>
+                        <input type="tel" id="telephone" placeholder="812345678" maxlength="9" pattern="[0-9]{9}" required>
+                    </div>
+                </div>
+                <div class="address-grid">
+                    <div class="form-group">
+                        <label for="adr-numero">Numéro</label>
+                        <input type="text" id="adr-numero" placeholder="Ex: 45 bis" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="adr-avenue">Avenue</label>
+                        <input type="text" id="adr-avenue" placeholder="Ex: De l'Université" required>
+                    </div>
+                </div>
+                <div class="address-grid">
+                    <div class="form-group">
+                        <label for="adr-quartier">Quartier</label>
+                        <input type="text" id="adr-quartier" placeholder="Ex: Lumumba" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="adr-commune">Commune / Ville</label>
+                        <input type="text" id="adr-commune" placeholder="Ex: Kamina" required>
+                    </div>
+                </div>
+
+                <h2 style="margin-top: 40px;">Mode de Paiement</h2>
+                <div class="payment-methods-grid">
+                    <label class="payment-method-card">
+                        <input type="radio" name="payment" value="mobile_money" id="pay-mobile" checked>
+                        <div class="method-details">
+                            <span class="method-icon">📱</span>
+                            <span class="method-title">Mobile Money</span>
+                            <span class="method-desc">Paiement électronique instantané</span>
+                        </div>
+                    </label>
+                    <label class="payment-method-card">
+                        <input type="radio" name="payment" value="cash" id="pay-cash">
+                        <div class="method-details">
+                            <span class="method-icon">💵</span>
+                            <span class="method-title">À la livraison</span>
+                            <span class="method-desc">Payer en espèces à la réception</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div id="mobile-operators-section" class="operators-box">
+                    <h3>Sélectionnez votre réseau :</h3>
+                    <div class="operators-grid">
+                        <label class="operator-item">
+                            <input type="radio" name="operator" value="M-Pesa" checked>
+                            <span class="operator-label mpesa">Vodacom M-Pesa</span>
+                        </label>
+                        <label class="operator-item">
+                            <input type="radio" name="operator" value="Airtel Money">
+                            <span class="operator-label airtel">Airtel Money</span>
+                        </label>
+                        <label class="operator-item">
+                            <input type="radio" name="operator" value="Orange Money">
+                            <span class="operator-label orange">Orange Money</span>
+                        </label>
+                    </div>
+                </div>
+                <button type="submit" class="confirm-order-btn" style="margin-top: 20px; width: 100%;">Confirmer et payer ma commande</button>
+            </form>
+        </section>
+
+        <section class="checkout-summary-section">
+            <h3>Résumé de la commande</h3>
+            <div id="checkout-summary-items"></div>
+            <div class="summary-total-box">
+                <div class="summary-row"><span>Sous-total</span><span id="summary-subtotal">0 $</span></div>
+                <div class="summary-row"><span>Livraison</span><span style="color: var(--accent); font-weight: 600;">Gratuite</span></div>
+                <hr class="summary-divider">
+                <div class="summary-row total"><span>Total à payer</span><span id="summary-total">0 $</span></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ================================================================= -->
+    <!-- ÉCRAN 4 : ESPACE ADMINISTRATION                                   -->
+    <!-- ================================================================= -->
+    <main id="screen-admin" class="app-screen admin-layout" style="display: none;">
+        <section class="admin-control-panel">
+            <h2>Gestion du Catalogue Équipements</h2>
+            <div class="admin-category-selectors">
+                <button class="admin-tab-btn active" id="tab-computers">💻 Ordinateurs</button>
+                <button class="admin-tab-btn" id="tab-smartphones">📱 Smartphones</button>
+                <button class="admin-tab-btn" id="tab-accessories">🎧 Accessoires</button>
+            </div>
+            <div class="admin-add-box">
+                <h3 id="form-admin-title">Ajouter un produit dans : Ordinateurs</h3>
+                <form id="admin-product-form">
+                    <div class="form-group">
+                        <label>Nom du produit</label>
+                        <input type="text" id="admin-p-name" placeholder="Ex: HP Spectre x360" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Caractéristiques techniques</label>
+                        <input type="text" id="admin-p-specs" placeholder="Ex: Core i7 - 16Go RAM - 1To SSD" required>
+                    </div>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label>Prix ($)</label>
+                            <input type="number" id="admin-p-price" placeholder="1200" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Lien URL de l'image (Internet)</label>
+                            <input type="url" id="admin-p-image" placeholder="https://exemple.com/image.jpg" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="add-btn-large" style="width: 100%;">Enregistrer l'équipement</button>
+                </form>
+            </div>
+            <h3>Équipements actuellement en ligne</h3>
+            <div class="admin-products-list" id="admin-products-list-container"></div>
+        </section>
+
+        <section class="admin-users-panel">
+            <h2>Utilisateurs Inscrits & Connectés</h2>
+            <div class="users-list-wrapper" id="admin-users-container"></div>
+        </section>
+    </main>
+
+    <!-- ================================================================= -->
+    <!-- COMPOSANTS FLOATANTS : PANIER LATÉRAL & OVERLAY                   -->
+    <!-- ================================================================= -->
+    <div class="cart-sidebar" id="cart-sidebar">
+        <div class="cart-sidebar-header">
+            <h3>Mon Panier</h3>
+            <button class="close-btn" id="close-cart-btn">&times;</button>
+        </div>
+        <div class="cart-items" id="cart-items-container">
+            <p class="empty-cart-msg">Votre panier est vide.</p>
+        </div>
+        <div class="cart-footer">
+            <div class="total-row">
+                <span>Total:</span>
+                <span id="cart-total">0 $</span>
+            </div>
+            <button class="checkout-btn" id="proceed-to-checkout-btn">Passer la commande</button>
+        </div>
+    </div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- SCRIPT CENTRAL SÉCURISÉ EN MODULE POUR FIREBASE -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
