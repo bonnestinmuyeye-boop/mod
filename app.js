@@ -75,7 +75,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (!utilisateurConnecte) {
-                alert("VIlles / clients veuillez vous connecter pour valider votre commande.");
+                alert("Veuillez vous connecter pour valider votre commande.");
                 modeInscription = false;
                 basculerFormulaireAuth();
                 naviguerVers('screen-auth');
@@ -153,7 +153,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const aiChatInput = document.getElementById('ai-chat-input');
 
     if (aiChatOpenBtn) aiChatOpenBtn.addEventListener('click', () => { document.getElementById('ai-chat-box').classList.toggle('open'); });
-    if (aiChatCloseBtn) aiChatCloseBtn.getElementById('ai-chat-close-btn').addEventListener('click', () => { document.getElementById('ai-chat-box').classList.remove('open'); });
+    if (aiChatCloseBtn) aiChatCloseBtn.addEventListener('click', () => { document.getElementById('ai-chat-box').classList.remove('open'); });
     if (aiChatSendBtn) aiChatSendBtn.addEventListener('click', envoyerMessageIA);
     if (aiChatInput) aiChatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') envoyerMessageIA(); });
 
@@ -192,6 +192,7 @@ onAuthStateChanged(auth, async (user) => {
                 naviguerVers('screen-admin');
                 chargerUtilisateursAdmin();
                 ecouterCommandesAdmin(); // Activer le flux temps réel des commandes
+                executerAnalyseIAAdmin(); // Déclencher l'IA de gestion côté Admin
             } else {
                 if (adminBadge) adminBadge.style.display = 'none';
             }
@@ -344,7 +345,7 @@ async function gererSoumissionAuth(e) {
 }
 
 // =================================================================
-// 8. FONCTIONS PANIER & LOGIQUE D'ACHAT
+// 8. FONCTIONS PANIER & LOGIQUE D'ACHAT (CORRIGÉES)
 // =================================================================
 function ouvrirPanier() { 
     document.getElementById('cart-sidebar').classList.add('open'); 
@@ -363,6 +364,15 @@ function ajouterAuPanier(id) {
     synchroniserPanier();
     ouvrirPanier();
 }
+
+// Fonction pour vider complètement le panier ("Supprimer la commande")
+window.viderLePanierComplet = function() {
+    if (confirm("Voulez-vous vraiment supprimer toute cette commande ?")) {
+        PANIER = [];
+        synchroniserPanier();
+        fermerPanier();
+    }
+};
 
 function synchroniserPanier() {
     localStorage.setItem('panier', JSON.stringify(PANIER));
@@ -385,21 +395,45 @@ function synchroniserPanier() {
             const row = document.createElement('div');
             row.className = 'cart-item';
             row.style.display = 'flex';
+            row.style.alignItems = 'center';
             row.style.justifyContent = 'space-between';
-            row.style.marginBottom = '10px';
+            row.style.marginBottom = '12px';
+            row.style.gap = '10px';
+            
+            // Correction : Ajout de la vignette de l'image du produit et bouton de suppression direct
             row.innerHTML = `
-                <div>
-                    <h4 style="margin:0;font-size:14px;">${item.name}</h4>
-                    <small>${item.price}$ x ${item.quantite}</small>
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                    <img src="${item.imageUrl || 'https://via.placeholder.com/50'}" alt="${item.name}" class="cart-item-thumbnail" style="width:50px; height:50px; object-fit:cover; border-radius:6px; background:#fafafa;">
+                    <div>
+                        <h4 style="margin:0;font-size:13px; font-weight:600;">${item.name}</h4>
+                        <small style="color:var(--text-muted);">${item.price}$ x ${item.quantite}</small>
+                    </div>
                 </div>
-                <div>
+                <div style="display: flex; align-items: center; gap: 5px;">
                     <button class="qty-btn" onclick="window.modifierQte('${item.id}', -1)">-</button>
                     <button class="qty-btn" onclick="window.modifierQte('${item.id}', 1)">+</button>
+                    <button class="delete-item-btn" onclick="window.retirerDuPanier('${item.id}')" style="background:none; border:none; color:#ef4444; font-size:14px; cursor:pointer; margin-left:5px;">❌</button>
                 </div>
             `;
             container.appendChild(row);
         });
+
+        // Correction : Ajout dynamique du bouton pour annuler ou supprimer la commande complète si absent
+        if (!document.getElementById('btn-clear-cart-global')) {
+            const clearBtnContainer = document.createElement('div');
+            clearBtnContainer.id = 'btn-clear-cart-global';
+            clearBtnContainer.style.padding = '10px 0';
+            clearBtnContainer.innerHTML = `
+                <button onclick="window.viderLePanierComplet()" style="width: 100%; background: #ef4444; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    🗑️ Supprimer la commande (Vider)
+                </button>
+            `;
+            container.appendChild(clearBtnContainer);
+        }
     }
+    
+    // Déclenche l'analyse IA automatique à chaque changement du panier client
+    analyserPanierAvecIA();
 }
 
 window.modifierQte = function(id, mod) {
@@ -407,6 +441,11 @@ window.modifierQte = function(id, mod) {
     if (!item) return;
     item.quantite += mod;
     if (item.quantite <= 0) PANIER = PANIER.filter(i => i.id !== id);
+    synchroniserPanier();
+};
+
+window.retirerDuPanier = function(id) {
+    PANIER = PANIER.filter(i => i.id !== id);
     synchroniserPanier();
 };
 
@@ -574,7 +613,7 @@ async function chargerUtilisateursAdmin() {
 }
 
 // =================================================================
-// 10. MOTEUR D'INTELLIGENCE ARTIFICIELLE (GEMINI API)
+// 10. MOTEUR D'INTELLIGENCE ARTIFICIELLE (GEMINI API) - CLIENT & ADMIN
 // =================================================================
 async function appelerAPIIntelGemini(promptSysteme, promptUtilisateur) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -584,7 +623,7 @@ async function appelerAPIIntelGemini(promptSysteme, promptUtilisateur) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
-                    parts: [{ text: `${promptSysteme}\n\nQuestion de l'utilisateur : ${promptUtilisateur}` }]
+                    parts: [{ text: `${promptSysteme}\n\nQuestion / Recommandation : ${promptUtilisateur}` }]
                 }]
             })
         });
@@ -594,6 +633,42 @@ async function appelerAPIIntelGemini(promptSysteme, promptUtilisateur) {
         console.error("Erreur API Gemini:", error);
         return "Désolé, je rencontre des difficultés techniques pour me connecter à mon cerveau IA.";
     }
+}
+
+// Correction/Ajout : IA d'analyse proactive du panier côté client
+async function analyserPanierAvecIA() {
+    const aiBox = document.getElementById('client-ai-suggestions');
+    if (!aiBox) return; // N'exécute rien si l'élément HTML n'est pas présent sur l'écran
+
+    if (PANIER.length === 0) {
+        aiBox.innerHTML = "<p style='font-size:13px; font-style:italic;'>L'IA attend que vous ajoutiez des articles pour analyser vos besoins...</p>";
+        return;
+    }
+
+    const nomsArticles = PANIER.map(i => i.name).join(', ');
+    const promptSysteme = "Tu es un conseiller technologique IA ultra-rapide. Tu vois les articles du panier actuel de l'utilisateur. Suggère en une seule phrase courte et percutante un accessoire logique manquant (ex: souris pour PC, pochette pour téléphone). Ne fais pas de listes.";
+    
+    const suggestion = await appelerAPIIntelGemini(promptSysteme, `Panier actuel : ${nomsArticles}`);
+    aiBox.innerHTML = `<div style="background:rgba(29, 78, 216, 0.1); border-left:4px solid var(--primary); padding:10px; font-size:13px; border-radius:4px;">🤖 <strong>Conseil IA :</strong> ${suggestion}</div>`;
+}
+
+// Correction/Ajout : IA d'analyse de stock automatique pour l'Admin
+async function executerAnalyseIAAdmin() {
+    const adminAiBox = document.getElementById('admin-ai-insights');
+    if (!adminAiBox) return;
+
+    adminAiBox.innerHTML = "<p style='font-size:13px; color:var(--text-muted);'>L'IA analyse le catalogue global...</p>";
+    
+    let descriptionStock = CATALOGUE.map(p => `- ${p.name} (${p.category}) : ${p.price}$`).join('\n');
+    const promptSysteme = "Tu es un consultant en business intelligence expert en matériel informatique à Kamina. Examine le stock global fourni et génère un rapport concis (3 points maximum) contenant une alerte de réapprovisionnement et une suggestion marketing.";
+    
+    const rapport = await appelerAPIIntelGemini(promptSysteme, descriptionStock || "Aucun produit en stock actuellement.");
+    adminAiBox.innerHTML = `
+        <div style="background: #fef3c7; color: #92400e; padding: 12px; border-left: 4px solid #d97706; border-radius: 6px; font-size: 13px;">
+            <h4 style="margin:0 0 5px 0; font-size:14px;">📊 Insights Prédictifs IA</h4>
+            <div style="white-space: pre-line;">${rapport}</div>
+        </div>
+    `;
 }
 
 // 🤖 Partie Chatbot Client : Recommandations basées exclusivement sur le stock réel
@@ -622,11 +697,12 @@ async function envoyerMessageIA() {
     const reponseIA = await appelerAPIIntelGemini(promptSysteme, texteClient);
     
     // Remplacer le loader par la réponse finale
-    document.getElementById(loaderId).textContent = reponseIA;
+    const loaderEl = document.getElementById(loaderId);
+    if (loaderEl) loaderEl.textContent = reponseIA;
     msgContainer.scrollTop = msgContainer.scrollHeight;
 }
 
-// 🛠️ Partie Assistant Administrateur : Analyse comportement et suggestion d'images de qualité
+// 🛠️ Partie Assistant Administrateur : Suggestions d'images de qualité
 async function gererAssistantImageAdmin() {
     const promptSysteme = `Tu es un expert en UI/UX design et marketing e-commerce. L'administrateur de l'application TechShop à Kamina souhaite de l'aide pour optimiser ses fiches d'équipements ou trouver d'excellentes idées d'images professionnelles. Donne-lui 3 conseils d'URLs ou structures d'images parfaites pour vendre de la technologie haut de gamme.`;
     alert("Analyse de l'Assistant Admin IA :\n\n" + await appelerAPIIntelGemini(promptSysteme, "Donne-moi des conseils d'optimisation pour mes liens d'images de produits et l'analyse de fiches."));
