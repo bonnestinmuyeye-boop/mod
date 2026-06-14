@@ -1,16 +1,10 @@
-// ================================================================= */
-// 1. IMPORTATION ET INITIALISATION DE FIREBASE                      */
-// ================================================================= */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { 
-    getFirestore, collection, addDoc, setDoc, doc, getDoc, onSnapshot, query, orderBy, serverTimestamp 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+// =================================================================
+// 1. CONFIGURATION & INITIALISATION DE FIREBASE MODULES
+// =================================================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, deleteDoc, serverTimestamp, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// METS TES PROPRES CONFIGURATIONS FIREBASE ICI
 const firebaseConfig = {
   apiKey: "AIzaSyCPKbw-M_fbEUtoeUAW5L3GI8mKXJIlfyA",
   authDomain: "techshop-kamina.firebaseapp.com",
@@ -25,604 +19,684 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ================================================================= */
-// 2. CRYPTAGE ET DÉCRYPTAGE LOCAL DE BOUT EN BOUT (SÉCURISÉ)        */
-// ================================================================= */
-const KEY_SHIFT = 7;
-function chiffrerDeBoutEnBout(texte) {
-    if (!texte) return "";
-    return texte.split('').map(char => String.fromCharCode(char.charCodeAt(0) + KEY_SHIFT)).join('');
-}
-function dechiffrerDeBoutEnBout(texteChiffre) {
-    if (!texteChiffre) return "";
-    return texteChiffre.split('').map(char => String.fromCharCode(char.charCodeAt(0) - KEY_SHIFT)).join('');
-}
+// Clé API Gemini fournie par l'utilisateur
+const GEMINI_API_KEY = "AQ.Ab8RN6LlebEj3dVD23jlUJEeWR3vfgYlz6a6i_sHUPHyd4q7aw";
 
-// ================================================================= */
-// 3. ÉTATS DE L'APPLICATION & NAVIGATION                            */
-// ================================================================= */
+// =================================================================
+// 2. ÉTATS GLOBAUX
+// =================================================================
+let CATALOGUE = [];
+let PANIER = JSON.parse(localStorage.getItem('panier')) || [];
+let categorieActiveClient = "tous";
+let categorieActiveAdmin = "Ordinateurs";
+let modeInscription = false;
 let utilisateurConnecte = null;
-let estAdmin = false;
-let estEnModeInscription = false;
-let clientSelectionnePourChat = null; 
-let enregistreurMedia = null;
-let morceauxAudio = [];
-let catalogueProduits = [];
 
-const listesEcrans = ["screen-home", "screen-auth", "screen-checkout", "screen-admin"];
-function basculerEcran(idEcranActif) {
-    listesEcrans.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = (id === idEcranActif) ? "grid" : "none";
-    });
-    if (idEcranActif === "screen-home") chargerProduitsVitrine();
-}
-
-// Clic sur le Logo
-document.getElementById("main-logo-btn").addEventListener("click", () => {
-    if (estAdmin) basculerEcran("screen-admin");
-    else basculerEcran("screen-home");
-});
-
-// Thème Sombre / Clair
-document.getElementById("theme-toggle").addEventListener("click", () => {
-    document.body.classList.toggle("light-mode");
-});
-
-// ================================================================= */
-// 4. SYSTÈME DE PANIER ET LOCALSTORAGE (RESTAURÉ D'ORIGINE)         */
-// ================================================================= */
-let panier = JSON.parse(localStorage.getItem("techshop_panier")) || [];
-
-// Rendre les fonctions accessibles globalement pour le HTML (onclick)
-window.ajouterAuPanier = function(idProduit) {
-    const produit = catalogueProduits.find(p => p.id === idProduit);
-    if (!produit) return;
-
-    const articleExistant = panier.find(item => item.id === idProduit);
-    if (articleExistant) {
-        articleExistant.quantite += 1;
-    } else {
-        panier.push({
-            id: produit.id,
-            nom: produit.nom,
-            prix: produit.prix,
-            image: produit.image,
-            quantite: 1
-        });
-    }
-    sauvegarderEtMettreAJourPanier();
-};
-
-window.changerQuantite = function(idProduit, delta) {
-    const article = panier.find(item => item.id === idProduit);
-    if (!article) return;
-
-    article.quantite += delta;
-    if (article.quantite <= 0) {
-        panier = panier.filter(item => item.id !== idProduit);
-    }
-    sauvegarderEtMettreAJourPanier();
-};
-
-function sauvegarderEtMettreAJourPanier() {
-    localStorage.setItem("techshop_panier", JSON.stringify(panier));
-    mettreAJourInterfacePanier();
-}
-
-function mettreAJourInterfacePanier() {
-    // Mettre à jour le badge du compteur
-    const totalArticles = panier.reduce((total, item) => total + item.quantite, 0);
-    document.getElementById("cart-count").textContent = totalArticles;
-
-    // Remplir le conteneur du panier latéral
-    const container = document.getElementById("cart-items-container");
-    if (panier.length === 0) {
-        container.innerHTML = `<p class="empty-cart-msg">Votre panier est vide.</p>`;
-        document.getElementById("cart-total").textContent = "0 $";
-        return;
-    }
-
-    let totalPrix = 0;
-    container.innerHTML = panier.map(item => {
-        const sousTotal = item.prix * item.quantite;
-        totalPrix += sousTotal;
-        return `
-            <div class="cart-item">
-                <img src="${item.image || 'https://via.placeholder.com/150'}" alt="${item.nom}">
-                <div class="item-details">
-                    <h4>${item.nom}</h4>
-                    <p>${item.prix} $</p>
-                    <div class="quantity-controls">
-                        <button onclick="changerQuantite('${item.id}', -1)">-</button>
-                        <span>${item.quantite}</span>
-                        <button onclick="changerQuantite('${item.id}', 1)">+</button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    document.getElementById("cart-total").textContent = `${totalPrix} $`;
-}
-
-// Événements pour ouvrir/fermer le panier de droite
-document.getElementById("open-cart-btn").addEventListener("click", () => {
-    document.getElementById("cart-sidebar").classList.add("open");
-    document.getElementById("sidebar-overlay").classList.add("active");
-});
-
-const fermerPanier = () => {
-    document.getElementById("cart-sidebar").classList.remove("open");
-    document.getElementById("sidebar-overlay").classList.remove("active");
-};
-document.getElementById("close-cart-btn").addEventListener("click", fermerPanier);
-document.getElementById("sidebar-overlay").addEventListener("click", fermerPanier);
-
-// Passer la commande
-document.getElementById("proceed-to-checkout-btn").addEventListener("click", () => {
-    if (panier.length === 0) {
-        alert("Votre panier est vide !");
-        return;
-    }
+// =================================================================
+// 3. SYSTÈME DE ROUTAGE SÉCURISÉ
+// =================================================================
+function naviguerVers(idEcran) {
     fermerPanier();
-    
-    // Préparer le résumé de la page de paiement
-    const summaryContainer = document.getElementById("checkout-summary-items");
-    let totalCheckout = 0;
-    
-    summaryContainer.innerHTML = panier.map(item => {
-        const sousTotal = item.prix * item.quantite;
-        totalCheckout += sousTotal;
-        return `
-            <div class="summary-item">
-                <span>${item.nom} (x${item.quantite})</span>
-                <span>${sousTotal} $</span>
-            </div>
-        `;
-    }).join('');
-
-    document.getElementById("summary-subtotal").textContent = `${totalCheckout} $`;
-    document.getElementById("summary-total").textContent = `${totalCheckout} $`;
-
-    if (!utilisateurConnecte) {
-        alert("Veuillez vous connecter pour finaliser votre commande.");
-        basculerEcran("screen-auth");
-    } else {
-        basculerEcran("screen-checkout");
-    }
-});
-
-// Soumission du formulaire de livraison / paiement
-document.getElementById("checkout-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (panier.length === 0) return;
-
-    const commandeInfo = {
-        clientUid: utilisateurConnecte.uid,
-        clientEmail: utilisateurConnecte.email,
-        nom: document.getElementById("nom").value.trim(),
-        telephone: "+243" + document.getElementById("telephone").value.trim(),
-        adresse: {
-            numero: document.getElementById("adr-numero").value.trim(),
-            avenue: document.getElementById("adr-avenue").value.trim(),
-            quartier: document.getElementById("adr-quartier").value.trim(),
-            commune: document.getElementById("adr-commune").value.trim()
-        },
-        modePaiement: document.querySelector('input[name="payment"]:checked').value,
-        articles: panier,
-        statut: "En attente",
-        timestamp: serverTimestamp()
-    };
-
-    try {
-        await addDoc(collection(db, "commandes"), commandeInfo);
-        alert("Félicitations ! Votre commande a été enregistrée avec succès.");
-        panier = [];
-        sauvegarderEtMettreAJourPanier();
-        basculerEcran("screen-home");
-    } catch (err) {
-        alert("Erreur lors de la validation de la commande : " + err.message);
-    }
-});
-
-// Cacher/Montrer les opérateurs selon le choix de paiement
-document.getElementById("pay-mobile").addEventListener("change", () => {
-    document.getElementById("mobile-operators-section").style.display = "block";
-});
-document.getElementById("pay-cash").addEventListener("change", () => {
-    document.getElementById("mobile-operators-section").style.display = "none";
-});
-
-// ================================================================= */
-// 5. SYSTÈME DE CONNEXION ET AUTHENTIFICATION                       */
-// ================================================================= */
-const authBtnNav = document.getElementById("auth-nav-btn");
-authBtnNav.addEventListener("click", () => {
-    if (utilisateurConnecte) {
-        signOut(auth).then(() => {
-            estAdmin = false;
-            clientSelectionnePourChat = null;
-            document.getElementById("admin-badge").style.display = "none";
-            basculerEcran("screen-home");
-        });
-    } else {
-        basculerEcran("screen-auth");
-    }
-});
-
-document.getElementById("link-switch-auth").addEventListener("click", (e) => {
-    e.preventDefault();
-    estEnModeInscription = !estEnModeInscription;
-    document.getElementById("auth-title").textContent = estEnModeInscription ? "Créer un compte" : "Connexion";
-    document.getElementById("auth-subtitle").textContent = estEnModeInscription ? "Inscrivez-vous pour votre suivi à Kamina" : "Connectez-vous pour finaliser vos achats";
-    document.getElementById("auth-submit-btn").textContent = estEnModeInscription ? "Créer mon compte" : "Se connecter";
-    document.getElementById("link-switch-auth").textContent = estEnModeInscription ? "Se connecter" : "Créer un compte";
-});
-
-document.getElementById("toggle-password-visibility").addEventListener("click", () => {
-    const pInput = document.getElementById("auth-password");
-    pInput.type = pInput.type === "password" ? "text" : "password";
-});
-
-document.getElementById("auth-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("auth-email").value.trim();
-    const mdp = document.getElementById("auth-password").value;
-
-    try {
-        if (estEnModeInscription) {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, mdp);
-            await setDoc(doc(db, "utilisateurs", userCredential.user.uid), {
-                uid: userCredential.user.uid,
-                email: email,
-                role: "client",
-                creeLe: serverTimestamp()
-            });
-            alert("Compte créé avec succès !");
+    document.querySelectorAll('.app-screen').forEach(screen => {
+        screen.style.display = 'none';
+    });
+    const ecranCible = document.getElementById(idEcran);
+    if (ecranCible) {
+        if (idEcran === 'screen-checkout' || idEcran === 'screen-admin') {
+            ecranCible.style.display = 'grid';
         } else {
-            await signInWithEmailAndPassword(auth, email, mdp);
+            ecranCible.style.display = 'block';
         }
-        document.getElementById("auth-form").reset();
-    } catch (err) {
-        alert("Erreur d'authentification : " + err.message);
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// =================================================================
+// 4. CHARGEMENT INITIAL ET ÉCOUTEURS D'ÉVÉNEMENTS
+// =================================================================
+window.addEventListener('DOMContentLoaded', () => {
+    // Liaison Logo Accueil
+    const logo = document.getElementById('main-logo-btn');
+    if (logo) logo.addEventListener('click', () => naviguerVers('screen-home'));
+
+    // Liaison Panier Événements
+    const openCartBtn = document.getElementById('open-cart-btn');
+    const closeCartBtn = document.getElementById('close-cart-btn');
+    const overlay = document.getElementById('sidebar-overlay');
+    const proceedBtn = document.getElementById('proceed-to-checkout-btn');
+    
+    if (openCartBtn) openCartBtn.addEventListener('click', ouvrirPanier);
+    if (closeCartBtn) closeCartBtn.addEventListener('click', fermerPanier);
+    if (overlay) overlay.addEventListener('click', fermerPanier);
+    
+    if (proceedBtn) {
+        proceedBtn.addEventListener('click', () => {
+            if (PANIER.length === 0) {
+                alert("Votre panier est vide !");
+                return;
+            }
+            if (!utilisateurConnecte) {
+                alert("Veuillez vous connecter pour valider votre commande.");
+                modeInscription = false;
+                basculerFormulaireAuth();
+                naviguerVers('screen-auth');
+                return;
+            }
+            preparerEcranCheckout();
+            naviguerVers('screen-checkout');
+        });
+    }
+
+    // Gestion de la visibilité du mot de passe (Œil)
+    const togglePasswordBtn = document.getElementById('toggle-password-visibility');
+    const passwordInput = document.getElementById('auth-password');
+    if (togglePasswordBtn && passwordInput) {
+        togglePasswordBtn.addEventListener('click', () => {
+            const isPassword = passwordInput.getAttribute('type') === 'password';
+            passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+            togglePasswordBtn.textContent = isPassword ? '🙈' : '👁️';
+        });
+    }
+
+    // Liaison Formulaire Authentification
+    const authForm = document.getElementById('auth-form');
+    if (authForm) authForm.addEventListener('submit', gererSoumissionAuth);
+    
+    // Liaison Initiale du bouton Switch d'authentification
+    const linkSwitch = document.getElementById('link-switch-auth');
+    if (linkSwitch) {
+        linkSwitch.addEventListener('click', (e) => {
+            e.preventDefault();
+            modeInscription = !modeInscription;
+            basculerFormulaireAuth();
+        });
+    }
+
+    // Liaison Formulaire Checkout
+    const checkoutForm = document.getElementById('checkout-form');
+    if (checkoutForm) checkoutForm.addEventListener('submit', validerCommandeFinale);
+    const payMobile = document.getElementById('pay-mobile');
+    const payCash = document.getElementById('pay-cash');
+    if (payMobile) payMobile.addEventListener('change', () => { document.getElementById('mobile-operators-section').style.display = 'block'; });
+    if (payCash) payCash.addEventListener('change', () => { document.getElementById('mobile-operators-section').style.display = 'none'; });
+
+    // Liaison Catégories Client
+    document.querySelectorAll('.categories-container .filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.categories-container .filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            categorieActiveClient = this.getAttribute('data-category');
+            afficherCatalogueClient();
+        });
+    });
+
+    // Liaison Recherche
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.addEventListener('input', filtrerRecherche);
+
+    // Liaison Onglets Admin
+    const tabsAdmin = { 'tab-computers': 'Ordinateurs', 'tab-smartphones': 'Smartphones', 'tab-accessories': 'Accessoires' };
+    Object.keys(tabsAdmin).forEach(idTab => {
+        const tabEl = document.getElementById(idTab);
+        if (tabEl) {
+            tabEl.addEventListener('click', function() {
+                document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                categorieActiveAdmin = tabsAdmin[idTab];
+                const formTitle = document.getElementById('form-admin-title');
+                if (formTitle) formTitle.textContent = "Ajouter un produit dans : " + categorieActiveAdmin;
+                afficherProduitsAdmin();
+            });
+        }
+    });
+
+    // Liaison Formulaire Ajout Produit Admin
+    const adminProductForm = document.getElementById('admin-product-form');
+    if (adminProductForm) adminProductForm.addEventListener('submit', ajouterNouveauProduitAdmin);
+
+    // Liaison Assistance Image Admin IA
+    const aiImgBtn = document.getElementById('admin-ai-img-btn');
+    if (aiImgBtn) aiImgBtn.addEventListener('click', gererAssistantImageAdmin);
+
+    // Liaison Boutons Assistant Chat IA Client
+    const aiChatOpenBtn = document.getElementById('ai-chat-open-btn');
+    const aiChatCloseBtn = document.getElementById('ai-chat-close-btn');
+    const aiChatSendBtn = document.getElementById('ai-chat-send-btn');
+    const aiChatInput = document.getElementById('ai-chat-input');
+    if (aiChatOpenBtn) aiChatOpenBtn.addEventListener('click', () => { document.getElementById('ai-chat-box').classList.toggle('open'); });
+    if (aiChatCloseBtn) aiChatCloseBtn.addEventListener('click', () => { document.getElementById('ai-chat-box').classList.remove('open'); });
+    if (aiChatSendBtn) aiChatSendBtn.addEventListener('click', envoyerMessageIA);
+    if (aiChatInput) aiChatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') envoyerMessageIA(); });
+
+    // Liaison Mode Sombre
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        });
+    }
+
+    // Lancement des données
+    synchroniserPanier();
+    chargerCatalogueDepuisCloud();
 });
 
-// Suivi de l'état d'authentification
+// =================================================================
+// 5. SURVEILLANCE DE LA SESSION AUTHENTIFICATION
+// =================================================================
 onAuthStateChanged(auth, async (user) => {
+    const authBtn = document.getElementById('auth-nav-btn');
+    const adminBadge = document.getElementById('admin-badge');
+    
     if (user) {
         utilisateurConnecte = user;
-        authBtnNav.textContent = "Déconnexion";
+        if (authBtn) authBtn.textContent = "Déconnexion";
         
-        const docUser = await getDoc(doc(db, "utilisateurs", user.uid));
-        if (docUser.exists() && docUser.data().role === "admin") {
-            estAdmin = true;
-            document.getElementById("admin-badge").style.display = "inline-block";
-            basculerEcran("screen-admin");
-            initWhatsAppSectionAdmin();
-            chargerCommandesAdmin();
-        } else {
-            estAdmin = false;
-            document.getElementById("admin-badge").style.display = "none";
-            basculerEcran("screen-home");
-            initWhatsAppSectionClient();
+        try {
+            const docRef = doc(db, "utilisateurs", user.uid);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists() && docSnap.data().role === 'admin') {
+                if (adminBadge) adminBadge.style.display = 'inline-block';
+                naviguerVers('screen-admin');
+                chargerUtilisateursAdmin();
+                ecouterCommandesAdmin();
+                executerAnalyseIAAdmin();
+            } else {
+                if (adminBadge) adminBadge.style.display = 'none';
+            }
+        } catch (e) {
+            console.error(e);
         }
     } else {
         utilisateurConnecte = null;
-        authBtnNav.textContent = "Connexion";
-        document.getElementById("admin-badge").style.display = "none";
-        basculerEcran("screen-home");
+        if (authBtn) authBtn.textContent = "Connexion";
+        if (adminBadge) adminBadge.style.display = 'none';
     }
-    sauvegarderEtMettreAJourPanier();
 });
 
-// ================================================================= */
-// 6. CHARGEMENT ET ENREGISTREMENT DU CATALOGUE                       */
-// ================================================================= */
-function chargerProduitsVitrine() {
-    onSnapshot(collection(db, "produits"), (snapshot) => {
-        catalogueProduits = [];
-        snapshot.forEach(d => catalogueProduits.push({ id: d.id, ...d.data() }));
-        afficherProduits(catalogueProduits);
-        if (estAdmin) afficherProduitsAdmin(catalogueProduits);
+const authNavBtn = document.getElementById('auth-nav-btn');
+if (authNavBtn) {
+    authNavBtn.addEventListener('click', () => {
+        if (utilisateurConnecte) {
+            signOut(auth).then(() => {
+                alert("Session déconnectée.");
+                naviguerVers('screen-home');
+            });
+        } else {
+            modeInscription = false;
+            basculerFormulaireAuth();
+            naviguerVers('screen-auth');
+        }
     });
 }
 
-function afficherProduits(liste) {
-    const container = document.getElementById("products-container");
+// =================================================================
+// 6. FONCTIONS LOGIQUES DE L'APPLICATION
+// =================================================================
+async function chargerCatalogueDepuisCloud() {
+    try {
+        const querySnapshot = await getDocs(collection(db, "produits"));
+        CATALOGUE = [];
+        querySnapshot.forEach((doc) => {
+            CATALOGUE.push({ id: doc.id, ...doc.data() });
+        });
+        afficherCatalogueClient();
+        if (utilisateurConnecte) afficherProduitsAdmin();
+    } catch (error) {
+        console.error("Erreur de chargement Firestore :", error);
+    }
+}
+
+function afficherCatalogueClient() {
+    const container = document.getElementById('products-container');
     if (!container) return;
-    container.innerHTML = liste.map(p => `
-        <div class="product-card">
-            <img class="product-image" src="${p.image || 'https://via.placeholder.com/150'}" alt="${p.nom}">
+    container.innerHTML = "";
+    const produitsFiltres = CATALOGUE.filter(p => categorieActiveClient === "tous" || p.category === categorieActiveClient);
+    if (produitsFiltres.length === 0) {
+        container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--text-muted);">Aucun équipement disponible.</p>`;
+        return;
+    }
+    produitsFiltres.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            <img src="${p.imageUrl || 'https://via.placeholder.com/300'}" alt="${p.name}" class="product-image">
             <div class="product-info">
-                <div class="product-title">${p.nom}</div>
-                <div class="product-specs">${p.caracteristiques}</div>
+                <h3 class="product-title">${p.name}</h3>
+                <p class="product-specs">${p.specs || ''}</p>
                 <div class="product-footer">
-                    <span class="product-price">${p.prix} $</span>
-                    <button class="add-to-cart-btn" onclick="ajouterAuPanier('${p.id}')"> 🛒  Prendre</button>
+                    <span class="product-price">${p.price} $</span>
+                    <button class="add-to-cart-btn" data-id="${p.id}">🛒 Ajouter</button>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+        container.appendChild(card);
+    });
+    container.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            ajouterAuPanier(this.getAttribute('data-id'));
+        });
+    });
 }
 
-function afficherProduitsAdmin(liste) {
-    const container = document.getElementById("admin-products-list-container");
+function filtrerRecherche() {
+    const cible = this.value.toLowerCase();
+    const container = document.getElementById('products-container');
     if (!container) return;
-    container.innerHTML = liste.map(p => `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-body); padding:8px; border-radius:6px; margin-bottom:5px; border:1px solid var(--border);">
-            <span style="font-size:13px;">${p.nom} - <strong>${p.prix} $</strong></span>
-            <span style="color:var(--text-muted); font-size:11px;">${p.categorie}</span>
-        </div>
-    `).join('');
+    container.innerHTML = "";
+    const produitsFiltres = CATALOGUE.filter(p => p.name.toLowerCase().includes(cible) || (p.specs && p.specs.toLowerCase().includes(cible)));
+    produitsFiltres.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            <img src="${p.imageUrl || 'https://via.placeholder.com/300'}" alt="${p.name}" class="product-image">
+            <div class="product-info">
+                <h3 class="product-title">${p.name}</h3>
+                <p class="product-specs">${p.specs || ''}</p>
+                <div class="product-footer">
+                    <span class="product-price">${p.price} $</span>
+                    <button class="add-to-cart-btn" data-id="${p.id}">🛒 Ajouter</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
 }
 
-// Recherche de produits
-document.getElementById("search-input").addEventListener("input", (e) => {
-    const txt = e.target.value.toLowerCase();
-    const filtres = catalogueProduits.filter(p => p.nom.toLowerCase().includes(txt) || p.caracteristiques.toLowerCase().includes(txt));
-    afficherProduits(filtres);
-});
-
-// Gestion des catégories du formulaire d'ajout Admin
-let categorieAdminSelectionnee = "Ordinateurs";
-["computers", "smartphones", "accessories"].forEach(id => {
-    const btn = document.getElementById("tab-" + id);
-    if(btn) {
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".admin-tab-btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            categorieAdminSelectionnee = btn.textContent.trim().split(" ").pop();
-            document.getElementById("form-admin-title").textContent = `Ajouter un produit dans : ${categorieAdminSelectionnee}`;
-        });
+// =================================================================
+// 7. GESTION DE L'AUTHENTIFICATION
+// =================================================================
+function basculerFormulaireAuth() {
+    document.getElementById('auth-title').textContent = modeInscription ? "Créer un compte" : "Connexion";
+    document.getElementById('auth-submit-btn').textContent = modeInscription ? "S'inscrire" : "Se connecter";
+    document.getElementById('auth-switch-text').innerHTML = modeInscription ? 
+        `Déjà inscrit ? <a href="#" id="link-switch-auth">Se connecter</a>` : 
+        `Pas encore de compte ? <a href="#" id="link-switch-auth">Créer un compte</a>`;
+    
+    // Réattacher l'œil si l'HTML change ou se réinitialise
+    const togglePasswordBtn = document.getElementById('toggle-password-visibility');
+    if (togglePasswordBtn) {
+        togglePasswordBtn.textContent = '👁️';
+        document.getElementById('auth-password').setAttribute('type', 'password');
     }
-});
 
-// Enregistrer un nouveau produit (Admin)
-document.getElementById("admin-product-form").addEventListener("submit", async (e) => {
+    document.getElementById('link-switch-auth').addEventListener('click', (e) => {
+        e.preventDefault();
+        modeInscription = !modeInscription;
+        basculerFormulaireAuth();
+    });
+}
+
+async function gererSoumissionAuth(e) {
     e.preventDefault();
-    if (!estAdmin) return;
-    const pNom = document.getElementById("admin-p-name").value.trim();
-    const pSpecs = document.getElementById("admin-p-specs").value.trim();
-    const pPrix = parseFloat(document.getElementById("admin-p-price").value);
-    const pImg = document.getElementById("admin-p-image").value.trim();
-
+    const email = document.getElementById('auth-email').value;
+    const pass = document.getElementById('auth-password').value;
     try {
-        await addDoc(collection(db, "produits"), {
-            nom: pNom,
-            caracteristiques: pSpecs,
-            prix: pPrix,
-            image: pImg,
-            categorie: categorieAdminSelectionnee,
-            creeLe: serverTimestamp()
-        });
-        document.getElementById("admin-product-form").reset();
-        alert("Matériel enregistré avec succès !");
-    } catch(err) {
-        alert("Erreur d'ajout : " + err.message);
-    }
-});
-
-// Charger le suivi des commandes pour l'admin
-function chargerCommandesAdmin() {
-    onSnapshot(collection(db, "commandes"), (snapshot) => {
-        const container = document.getElementById("admin-orders-container");
-        if (snapshot.empty) {
-            container.innerHTML = `<p style="color: var(--text-muted); font-size: 14px;">Aucune commande pour le moment.</p>`;
-            return;
+        if (modeInscription) {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+            await setDoc(doc(db, "utilisateurs", userCredential.user.uid), {
+                email: email,
+                role: "client",
+                createdAt: serverTimestamp()
+            });
+            alert("Compte client créé avec succès !");
+        } else {
+            await signInWithEmailAndPassword(auth, email, pass);
         }
-        container.innerHTML = snapshot.docs.map(docSnap => {
-            const cmd = docSnap.data();
-            return `
-                <div style="background:var(--bg-card); padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid var(--border); font-size:12px;">
-                    <strong>Client :</strong> ${cmd.nom} (${cmd.telephone})<br>
-                    <strong>Adresse :</strong> N°${cmd.adresse.numero}, Av. ${cmd.adresse.avenue}, Q. ${cmd.adresse.quartier}, ${cmd.adresse.commune}<br>
-                    <strong>Paiement :</strong> ${cmd.modePaiement}<br>
-                    <strong>Articles :</strong> ${cmd.articles.map(a => `${a.nom} (x${a.quantite})`).join(', ')}
+        document.getElementById('auth-form').reset();
+        naviguerVers('screen-home');
+    } catch (err) {
+        alert("Erreur Authentification : " + err.message);
+    }
+}
+
+// =================================================================
+// 8. FONCTIONS PANIER & LOGIQUE D'ACHAT (CORRIGÉES POUR LOOK ALIBABA)
+// =================================================================
+function ouvrirPanier() { 
+    document.getElementById('cart-sidebar').classList.add('open'); 
+    document.getElementById('sidebar-overlay').classList.add('open'); 
+}
+function fermerPanier() { 
+    document.getElementById('cart-sidebar').classList.remove('open'); 
+    document.getElementById('sidebar-overlay').classList.remove('open'); 
+}
+
+/* Correction demandée : Le panier met à jour la quantité et l'état visuel mais ne s'ouvre PLUS automatiquement lors de l'ajout */
+function ajouterAuPanier(id) {
+    const itemStock = CATALOGUE.find(p => p.id === id);
+    if (!itemStock) return;
+    const existant = PANIER.find(item => item.id === id);
+    if (existant) { 
+        existant.quantite++; 
+    } else { 
+        PANIER.push({ ...itemStock, quantite: 1 }); 
+    }
+    synchroniserPanier();
+    // ouvrirPanier(); <-- Retiré pour satisfaire la demande d'affichage moderne et non-intrusif
+}
+
+window.viderLePanierComplet = function() {
+    if (confirm("Voulez-vous vraiment supprimer toute cette commande ?")) {
+        PANIER = [];
+        synchroniserPanier();
+        fermerPanier();
+    }
+};
+
+function synchroniserPanier() {
+    localStorage.setItem('panier', JSON.stringify(PANIER));
+    const totalItems = PANIER.reduce((sum, item) => sum + item.quantite, 0);
+    const prixTotal = PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0);
+    
+    const countEl = document.getElementById('cart-count');
+    const totalEl = document.getElementById('cart-total');
+    if (countEl) countEl.textContent = totalItems;
+    if (totalEl) totalEl.textContent = prixTotal + " $";
+    
+    const container = document.getElementById('cart-items-container');
+    if (!container) return;
+    
+    if (PANIER.length === 0) {
+        container.innerHTML = `<p class="empty-cart-msg">Votre panier est vide.</p>`;
+    } else {
+        container.innerHTML = "";
+        PANIER.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'cart-item';
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.justifyContent = 'space-between';
+            row.style.padding = '10px 0';
+            row.style.borderBottom = '1px solid var(--border)';
+            row.style.gap = '10px';
+            
+            row.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                    <img src="${item.imageUrl || 'https://via.placeholder.com/50'}" alt="${item.name}" style="width:45px; height:45px; object-fit:cover; border-radius:6px; background:#fafafa;">
+                    <div>
+                        <h4 style="margin:0; font-size:13px; font-weight:600; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden;">${item.name}</h4>
+                        <small style="color:var(--text-muted); font-weight:500;">${item.price} $ x ${item.quantite}</small>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <button class="qty-btn" onclick="window.modifierQte('${item.id}', -1)">-</button>
+                    <button class="qty-btn" onclick="window.modifierQte('${item.id}', 1)">+</button>
+                    <button onclick="window.retirerDuPanier('${item.id}')" style="background:none; border:none; color:#ef4444; font-size:14px; cursor:pointer; margin-left:4px;">❌</button>
                 </div>
             `;
-        }).join('');
-    });
-}
-
-// ================================================================= */
-// 7. MODULE CHAT SÉCURISÉ DE BOUT EN BOUT : CÔTÉ CLIENT              */
-// ================================================================= */
-const bulleOpenBtn = document.getElementById("ai-chat-open-btn");
-const boxChat = document.getElementById("ai-chat-box");
-if(bulleOpenBtn && boxChat) {
-    bulleOpenBtn.addEventListener("click", () => {
-        boxChat.style.display = boxChat.style.display === "flex" ? "none" : "flex";
-    });
-    document.getElementById("ai-chat-close-btn").addEventListener("click", () => { boxChat.style.display = "none"; });
-}
-
-function initWhatsAppSectionClient() {
-    if (!utilisateurConnecte) return;
-    const q = query(collection(db, "chats", utilisateurConnecte.uid, "messages"), orderBy("timestamp", "asc"));
-    onSnapshot(q, (snapshot) => {
-        const container = document.getElementById("client-chat-messages-container");
-        if(!container) return;
-        container.innerHTML = "";
-        snapshot.forEach(docSnap => {
-            const m = docSnap.data();
-            const estMonMessage = (m.senderId === utilisateurConnecte.uid);
-            const texteAffiche = m.type === "audio" ? "" : dechiffrerDeBoutEnBout(m.message);
-            
-            const div = document.createElement("div");
-            div.className = `msg-bubble ${estMonMessage ? 'outgoing' : 'incoming'}`;
-            
-            if (m.type === "audio") {
-                div.innerHTML = `<div class="audio-player"> 🎵 <audio src="${m.audioUrl}" controls></audio></div>`;
-            } else {
-                div.textContent = texteAffiche;
-            }
-            container.appendChild(div);
+            container.appendChild(row);
         });
-        container.scrollTop = container.scrollHeight;
-    });
-}
 
-document.getElementById("client-chat-send-btn").addEventListener("click", envoyerMessageTexteClient);
-document.getElementById("client-chat-input").addEventListener("keypress", (e) => { if(e.key === "Enter") envoyerMessageTexteClient(); });
-
-async function envoyerMessageTexteClient() {
-    const input = document.getElementById("client-chat-input");
-    const texte = input.value.trim();
-    if (!texte || !utilisateurConnecte) return;
-
-    const texteChiffre = chiffrerDeBoutEnBout(texte);
-    input.value = "";
-
-    await setDoc(doc(db, "utilisateurs_actifs_chat", utilisateurConnecte.uid), {
-        uid: utilisateurConnecte.uid,
-        email: utilisateurConnecte.email,
-        dernierMessageId: Date.now()
-    });
-
-    await addDoc(collection(db, "chats", utilisateurConnecte.uid, "messages"), {
-        senderId: utilisateurConnecte.uid,
-        message: texteChiffre,
-        type: "texte",
-        timestamp: serverTimestamp()
-    });
-}
-
-const clientMicBtn = document.getElementById("client-chat-mic-btn");
-if(clientMicBtn) {
-    clientMicBtn.addEventListener("click", () => gererEnregistrementAudio(utilisateurConnecte.uid, clientMicBtn));
-}
-
-// ================================================================= */
-// 8. MODULE CHAT SÉCURISÉ DE BOUT EN BOUT : CÔTÉ ADMINISTRATEUR      */
-// ================================================================= */
-function initWhatsAppSectionAdmin() {
-    onSnapshot(collection(db, "utilisateurs_actifs_chat"), (snapshot) => {
-        const sidebar = document.getElementById("admin-chat-users-list");
-        if(!sidebar) return;
-        sidebar.innerHTML = "";
-        if (snapshot.empty) {
-            sidebar.innerHTML = `<p class="empty-msg">Aucun client.</p>`;
-            return;
+        if (!document.getElementById('btn-clear-cart-global')) {
+            const clearBtnContainer = document.createElement('div');
+            clearBtnContainer.id = 'btn-clear-cart-global';
+            clearBtnContainer.style.padding = '15px 0 5px 0';
+            clearBtnContainer.innerHTML = `
+                <button onclick="window.viderLePanierComplet()" style="width: 100%; background: #ef4444; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size:13px;">
+                    🗑️ Vider le panier complet
+                </button>
+            `;
+            container.appendChild(clearBtnContainer);
         }
-        snapshot.forEach(docSnap => {
-            const u = docSnap.data();
-            const div = document.createElement("div");
-            div.className = `chat-user-item ${clientSelectionnePourChat === u.uid ? 'active' : ''}`;
-            div.textContent = u.email.split('@')[0];
-            div.addEventListener("click", () => selectClientPourDiscussionAdmin(u.uid, u.email));
-            sidebar.appendChild(div);
-        });
-    });
+    }
+    analyserPanierAvecIA();
 }
 
-function selectClientPourDiscussionAdmin(uidClient, emailClient) {
-    clientSelectionnePourChat = uidClient;
-    document.getElementById("admin-chat-area").style.display = "flex";
-    document.getElementById("admin-active-client-title").textContent = `Discussion avec : ${emailClient}`;
+window.modifierQte = function(id, mod) {
+    const item = PANIER.find(i => i.id === id);
+    if (!item) return;
+    item.quantite += mod;
+    if (item.quantite <= 0) PANIER = PANIER.filter(i => i.id !== id);
+    synchroniserPanier();
+};
+
+window.retirerDuPanier = function(id) {
+    PANIER = PANIER.filter(i => i.id !== id);
+    synchroniserPanier();
+};
+
+function preparerEcranCheckout() {
+    const summaryContainer = document.getElementById('checkout-summary-items');
+    if (!summaryContainer) return;
+    summaryContainer.innerHTML = "";
     
-    // Rafraîchir la sélection visuelle active de la liste de gauche
-    document.querySelectorAll(".chat-user-item").forEach(item => {
-        if(item.textContent === emailClient.split('@')[0]) item.classList.add("active");
-        else item.classList.remove("active");
+    PANIER.forEach(item => {
+        summaryContainer.innerHTML += `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;"><span>${item.name} (x${item.quantite})</span><span>${item.price * item.quantite} $</span></div>`;
     });
-
-    const q = query(collection(db, "chats", uidClient, "messages"), orderBy("timestamp", "asc"));
-    onSnapshot(q, (snapshot) => {
-        const container = document.getElementById("admin-chat-messages-container");
-        if(!container) return;
-        container.innerHTML = "";
-        snapshot.forEach(docSnap => {
-            const m = docSnap.data();
-            const estAdminMsg = (m.senderId === utilisateurConnecte.uid);
-            const texteAffiche = m.type === "audio" ? "" : dechiffrerDeBoutEnBout(m.message);
-
-            const div = document.createElement("div");
-            div.className = `msg-bubble ${estAdminMsg ? 'outgoing' : 'incoming'}`;
-            
-            if (m.type === "audio") {
-                div.innerHTML = `<div class="audio-player"> 🎵 <audio src="${m.audioUrl}" controls></audio></div>`;
-            } else {
-                div.textContent = texteAffiche;
-            }
-            container.appendChild(div);
-        });
-        container.scrollTop = container.scrollHeight;
-    });
+    const total = PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0);
+    document.getElementById('summary-subtotal').textContent = total + " $";
+    document.getElementById('summary-total').textContent = total + " $";
 }
 
-document.getElementById("admin-chat-send-btn").addEventListener("click", envoyerMessageTexteAdmin);
-document.getElementById("admin-chat-input").addEventListener("keypress", (e) => { if(e.key === "Enter") envoyerMessageTexteAdmin(); });
-
-async function envoyerMessageTexteAdmin() {
-    const input = document.getElementById("admin-chat-input");
-    const texte = input.value.trim();
-    if (!texte || !clientSelectionnePourChat || !utilisateurConnecte) return;
-
-    const texteChiffre = chiffrerDeBoutEnBout(texte);
-    input.value = "";
-
-    await addDoc(collection(db, "chats", clientSelectionnePourChat, "messages"), {
-        senderId: utilisateurConnecte.uid,
-        message: texteChiffre,
-        type: "texte",
-        timestamp: serverTimestamp()
-    });
-}
-
-const adminMicBtn = document.getElementById("admin-chat-mic-btn");
-if(adminMicBtn) {
-    adminMicBtn.addEventListener("click", () => {
-        if (!clientSelectionnePourChat) return;
-        gererEnregistrementAudio(clientSelectionnePourChat, adminMicBtn);
-    });
-}
-
-// ================================================================= */
-// 9. LOGIQUE MUTUELLE DE CAPTURE ET ENVOI AUDIO                      */
-// ================================================================= */
-async function gererEnregistrementAudio(idDossierChat, elementBoutonMic) {
-    if (enregistreurMedia && enregistreurMedia.state === "recording") {
-        elementBoutonMic.classList.remove("recording");
-        elementBoutonMic.textContent = "🎤";
-        enregistreurMedia.stop();
-    } else {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("L'enregistrement audio n'est pas supporté ou autorisé.");
-            return;
-        }
-        try {
-            const flux = await navigator.mediaDevices.getUserMedia({ audio: true });
-            morceauxAudio = [];
-            enregistreurMedia = new MediaRecorder(flux);
-            
-            enregistreurMedia.ondataavailable = (e) => { if (e.data.size > 0) morceauxAudio.push(e.data); };
-            
-            enregistreurMedia.onstop = async () => {
-                const blobAudio = new Blob(morceauxAudio, { type: 'audio/mp3' });
-                const nomFichier = `audio_${Date.now()}.mp3`;
-                const stockageRef = ref(storage, `chats/${idDossierChat}/${nomFichier}`);
-                
-                const snapshot = await uploadBytes(stockageRef, blobAudio);
-                const urlAudioRecuperee = await getDownloadURL(snapshot.ref);
-                
-                await addDoc(collection(db, "chats", idDossierChat, "messages"), {
-                    senderId: utilisateurConnecte.uid,
-                    audioUrl: urlAudioRecuperee,
-                    type: "audio",
-                    timestamp: serverTimestamp()
-                });
-            };
-
-            enregistreurMedia.start();
-            elementBoutonMic.classList.add("recording");
-            elementBoutonMic.textContent = "🛑";
-        } catch (err) {
-            alert("Impossible d'accéder au micro : " + err.message);
-        }
+async function validerCommandeFinale(e) {
+    e.preventDefault();
+    const modePaiement = document.querySelector('input[name="payment"]:checked').value;
+    let detailPaiement = modePaiement === 'cash' ? 'À la livraison (Espèces)' : 'Mobile Money';
+    
+    if (modePaiement === 'mobile_money') {
+        const operateur = document.querySelector('input[name="operator"]:checked').value;
+        detailPaiement += ` (${operateur})`;
+    }
+    
+    const commandePayload = {
+        clientUid: utilisateurConnecte.uid,
+        clientEmail: utilisateurConnecte.email,
+        livraison: {
+            nom: document.getElementById('nom').value,
+            telephone: "+243" + document.getElementById('telephone').value,
+            numero: document.getElementById('adr-numero').value,
+            avenue: document.getElementById('adr-avenue').value,
+            quartier: document.getElementById('adr-quartier').value,
+            commune: document.getElementById('adr-commune').value
+        },
+        articles: PANIER.map(item => ({ name: item.name, price: item.price, quantite: item.quantite })),
+        montantTotal: PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0),
+        modePaiement: detailPaiement,
+        dateCommande: serverTimestamp()
+    };
+    try {
+        await addDoc(collection(db, "commandes"), commandePayload);
+        alert("Commande enregistrée avec succès ! Notre équipe va vous contacter pour la livraison.");
+        PANIER = [];
+        synchroniserPanier();
+        document.getElementById('checkout-form').reset();
+        naviguerVers('screen-home');
+    } catch (err) {
+        alert("Erreur commande : " + err.message);
     }
 }
 
-// Premier chargement initial obligatoire
-chargerProduitsVitrine();
+// =================================================================
+// 9. LOGIQUE ADMINISTRATION FIRESTORE & ÉCOUTE TEMPS RÉEL
+// =================================================================
+async function ajouterNouveauProduitAdmin(e) {
+    e.preventDefault();
+    const nouveauProduit = {
+        name: document.getElementById('admin-p-name').value,
+        specs: document.getElementById('admin-p-specs').value,
+        price: parseInt(document.getElementById('admin-p-price').value) || 0,
+        imageUrl: document.getElementById('admin-p-image').value,
+        category: categorieActiveAdmin,
+        createdAt: new Date().getTime()
+    };
+    try {
+        await addDoc(collection(db, "produits"), nouveauProduit);
+        alert("Produit ajouté au Cloud !");
+        document.getElementById('admin-product-form').reset();
+        chargerCatalogueDepuisCloud();
+    } catch (err) {
+        alert("Erreur d'ajout : " + err.message);
+    }
+}
+
+function afficherProduitsAdmin() {
+    const listContainer = document.getElementById('admin-products-list-container');
+    if (!listContainer) return;
+    listContainer.innerHTML = "";
+    const produitsFiltres = CATALOGUE.filter(p => p.category === categorieActiveAdmin);
+    produitsFiltres.forEach(p => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+        row.style.padding = '10px';
+        row.style.borderBottom = '1px solid var(--border)';
+        row.innerHTML = `
+            <div style="font-size:13px;"><strong>${p.name}</strong> - ${p.price} $</div>
+            <button style="background:#ef4444;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;" onclick="window.supprProd('${p.id}')">Supprimer</button>
+        `;
+        listContainer.appendChild(row);
+    });
+}
+
+window.supprProd = async function(id) {
+    if (confirm("Supprimer ce produit ?")) {
+        try {
+            await deleteDoc(doc(db, "produits", id));
+            chargerCatalogueDepuisCloud();
+        } catch (e) {
+            alert(e.message);
+        }
+    }
+};
+
+function ecouterCommandesAdmin() {
+    const container = document.getElementById('admin-orders-container');
+    if (!container) return;
+    const q = query(collection(db, "commandes"), orderBy("dateCommande", "desc"));
+    onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+            container.innerHTML = `<p style="color: var(--text-muted); font-size: 14px;">Aucune commande disponible.</p>`;
+            return;
+        }
+        container.innerHTML = "";
+        snapshot.forEach((doc) => {
+            const cmd = doc.data();
+            let listeArticlesHTML = cmd.articles.map(a => `<li>${a.name} (x${a.quantite}) - ${a.price}$</li>`).join('');
+            
+            const card = document.createElement('div');
+            card.className = 'admin-order-card';
+            card.style.background = 'var(--bg-body)';
+            card.style.border = '1px solid var(--border)';
+            card.style.padding = '15px';
+            card.style.borderRadius = '10px';
+            card.style.marginBottom = '15px';
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <span style="font-weight:700; color:var(--primary);">Total : ${cmd.montantTotal} $</span>
+                    <span style="font-size:12px; background:var(--accent); color:white; padding:2px 6px; border-radius:4px;">${cmd.modePaiement}</span>
+                </div>
+                <p style="margin:4px 0; font-size:13px;"><strong>Client:</strong> ${cmd.livraison.nom} (${cmd.clientEmail})</p>
+                <p style="margin:4px 0; font-size:13px;"><strong>Tél:</strong> ${cmd.livraison.telephone}</p>
+                <p style="margin:4px 0; font-size:13px;"><strong>Adresse:</strong> N°${cmd.livraison.numero}, Av. ${cmd.livraison.avenue}, Q/${cmd.livraison.quartier}, C/${cmd.livraison.commune}</p>
+                <div style="margin-top:10px; font-size:13px; border-top:1px dashed var(--border); padding-top:8px;">
+                    <strong>Articles commandés :</strong>
+                    <ul style="padding-left:20px; margin-top:5px;">${listeArticlesHTML}</ul>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    });
+}
+
+async function chargerUtilisateursAdmin() {
+    const container = document.getElementById('admin-users-container');
+    if (!container) return;
+    try {
+        const querySnapshot = await getDocs(collection(db, "utilisateurs"));
+        container.innerHTML = "";
+        querySnapshot.forEach((doc) => {
+            const u = doc.data();
+            container.innerHTML += `<div style="padding:8px;border-bottom:1px solid var(--border); font-size:13px;">👤 ${u.email} - <strong>${u.role || 'client'}</strong></div>`;
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+// =================================================================
+// 10. MOTEUR D'INTELLIGENCE ARTIFICIELLE (GEMINI API) - CLIENT & ADMIN
+// =================================================================
+async function appelerAPIIntelGemini(promptSysteme, promptUtilisateur) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    try {
+        const reponse = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: `${promptSysteme}\n\nQuestion / Recommandation : ${promptUtilisateur}` }]
+                }]
+            })
+        });
+        const data = await reponse.json();
+        return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+        console.error("Erreur API Gemini:", error);
+        return "Désolé, je rencontre des difficultés techniques pour me connecter à mon cerveau IA.";
+    }
+}
+
+async function analyserPanierAvecIA() {
+    const aiBox = document.getElementById('client-ai-suggestions');
+    if (!aiBox) return; 
+    if (PANIER.length === 0) {
+        aiBox.innerHTML = "";
+        return;
+    }
+    const nomsArticles = PANIER.map(i => i.name).join(', ');
+    const promptSysteme = "Tu es un conseiller technologique IA ultra-rapide. Tu vois les articles du panier actuel de l'utilisateur. Suggère en une seule phrase courte et percutante un accessoire logique manquant (ex: souris pour PC, pochette pour téléphone). Ne fais pas de listes.";
+    
+    const suggestion = await appelerAPIIntelGemini(promptSysteme, `Panier actuel : ${nomsArticles}`);
+    aiBox.innerHTML = `<div style="background:rgba(0, 173, 181, 0.1); border-left:4px solid var(--primary); padding:12px; font-size:13px; border-radius:8px; margin-bottom:10px;">🤖 <strong>Conseil IA :</strong> ${suggestion}</div>`;
+}
+
+async function executerAnalyseIAAdmin() {
+    const adminAiBox = document.getElementById('admin-ai-insights');
+    if (!adminAiBox) return;
+    adminAiBox.innerHTML = "<p style='font-size:13px; color:var(--text-muted);'>L'IA analyse le catalogue global...</p>";
+    
+    let descriptionStock = CATALOGUE.map(p => `- ${p.name} (${p.category}) : ${p.price}$`).join('\n');
+    const promptSysteme = "Tu es un consultant en business intelligence expert en matériel informatique à Kamina. Examine le stock global fourni et génère un rapport concis (3 points maximum) contenant une alerte de réapprovisionnement et une suggestion marketing.";
+    
+    const rapport = await appelerAPIIntelGemini(promptSysteme, descriptionStock || "Aucun produit en stock actuellement.");
+    adminAiBox.innerHTML = `
+        <div style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 14px; border-left: 4px solid #f59e0b; border-radius: 8px; font-size: 13px;">
+            <h4 style="margin:0 0 6px 0; font-size:14px; font-weight:700;">📊 Insights Prédictifs IA</h4>
+            <div style="white-space: pre-line; line-height:1.4;">${rapport}</div>
+        </div>
+    `;
+}
+
+async function envoyerMessageIA() {
+    const inputEl = document.getElementById('ai-chat-input');
+    const msgContainer = document.getElementById('ai-chat-messages');
+    if (!inputEl || !msgContainer || inputEl.value.trim() === "") return;
+    const texteClient = inputEl.value;
+    inputEl.value = "";
+    
+    msgContainer.innerHTML += `<div class="ai-msg user">${texteClient}</div>`;
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+    
+    let descriptionStock = CATALOGUE.map(p => `- Équipement: ${p.name}, Catégorie: ${p.category}, Caractéristiques: ${p.specs || 'N/A'}, Prix: ${p.price}$`).join('\n');
+    
+    const promptSysteme = `Tu es l'assistant de vente intelligent de la boutique TechShop basée à Kamina. Tu devez guider les acheteurs de manière sérieuse et commerciale. Voici notre stock réel extrait en temps réel de notre base de données : \n${descriptionStock}\n\nInstructions impératives :\n1. Ne propose OU ne conseille QUE des produits présents dans cette liste ci-dessus.\n2. Si un produit demandé n'est pas dans la liste, indique poliment qu'il est en rupture de stock et oriente-le vers un produit équivalent disponible.\n3. Réponds de manière concise, polie et professionnelle.`;
+    
+    const loaderId = "loader-" + Date.now();
+    msgContainer.innerHTML += `<div class="ai-msg bot" id="${loaderId}">Réflexion en cours...</div>`;
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+    const reponseIA = await appelerAPIIntelGemini(promptSysteme, texteClient);
+    
+    const loaderEl = document.getElementById(loaderId);
+    if (loaderEl) loaderEl.textContent = reponseIA;
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+async function gererAssistantImageAdmin() {
+    const promptSysteme = `Tu es un expert en UI/UX design et marketing e-commerce. L'administrateur de l'application TechShop à Kamina souhaite de l'aide pour optimiser ses fiches d'équipements ou trouver d'excellentes idées d'images professionnelles. Donne-lui 3 conseils d'URLs ou structures d'images parfaites pour vendre de la technologie haut de gamme.`;
+    alert("Analyse de l'Assistant Admin IA :\n\n" + await appelerAPIIntelGemini(promptSysteme, "Donne-moi des conseils d'optimisation pour mes liens d'images de produits et l'analyse de fiches."));
+}
