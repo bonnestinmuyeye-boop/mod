@@ -10,6 +10,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
+// METS TES PROPRES CONFIGURATIONS FIREBASE ICI
 const firebaseConfig = {
   apiKey: "AIzaSyCPKbw-M_fbEUtoeUAW5L3GI8mKXJIlfyA",
   authDomain: "techshop-kamina.firebaseapp.com",
@@ -27,7 +28,6 @@ const db = getFirestore(app);
 // ================================================================= */
 // 2. CRYPTAGE ET DÉCRYPTAGE LOCAL DE BOUT EN BOUT (SÉCURISÉ)        */
 // ================================================================= */
-// Chiffrement par substitution sécurisé local (pas de fuite en clair vers Firestore)
 const KEY_SHIFT = 7;
 function chiffrerDeBoutEnBout(texte) {
     if (!texte) return "";
@@ -47,6 +47,7 @@ let estEnModeInscription = false;
 let clientSelectionnePourChat = null; 
 let enregistreurMedia = null;
 let morceauxAudio = [];
+let catalogueProduits = [];
 
 const listesEcrans = ["screen-home", "screen-auth", "screen-checkout", "screen-admin"];
 function basculerEcran(idEcranActif) {
@@ -54,10 +55,10 @@ function basculerEcran(idEcranActif) {
         const el = document.getElementById(id);
         if (el) el.style.display = (id === idEcranActif) ? "grid" : "none";
     });
-    if(idEcranActif === "screen-home") chargerProduitsVitrine();
+    if (idEcranActif === "screen-home") chargerProduitsVitrine();
 }
 
-// Dom Elements
+// Clic sur le Logo
 document.getElementById("main-logo-btn").addEventListener("click", () => {
     if (estAdmin) basculerEcran("screen-admin");
     else basculerEcran("screen-home");
@@ -69,7 +70,172 @@ document.getElementById("theme-toggle").addEventListener("click", () => {
 });
 
 // ================================================================= */
-// 4. SYSTÈME DE CONNEXION ET CRÉATION DE COMPTE (FIXÉ & SÉCURISÉ)   */
+// 4. SYSTÈME DE PANIER ET LOCALSTORAGE (RESTAURÉ D'ORIGINE)         */
+// ================================================================= */
+let panier = JSON.parse(localStorage.getItem("techshop_panier")) || [];
+
+// Rendre les fonctions accessibles globalement pour le HTML (onclick)
+window.ajouterAuPanier = function(idProduit) {
+    const produit = catalogueProduits.find(p => p.id === idProduit);
+    if (!produit) return;
+
+    const articleExistant = panier.find(item => item.id === idProduit);
+    if (articleExistant) {
+        articleExistant.quantite += 1;
+    } else {
+        panier.push({
+            id: produit.id,
+            nom: produit.nom,
+            prix: produit.prix,
+            image: produit.image,
+            quantite: 1
+        });
+    }
+    sauvegarderEtMettreAJourPanier();
+};
+
+window.changerQuantite = function(idProduit, delta) {
+    const article = panier.find(item => item.id === idProduit);
+    if (!article) return;
+
+    article.quantite += delta;
+    if (article.quantite <= 0) {
+        panier = panier.filter(item => item.id !== idProduit);
+    }
+    sauvegarderEtMettreAJourPanier();
+};
+
+function sauvegarderEtMettreAJourPanier() {
+    localStorage.setItem("techshop_panier", JSON.stringify(panier));
+    mettreAJourInterfacePanier();
+}
+
+function mettreAJourInterfacePanier() {
+    // Mettre à jour le badge du compteur
+    const totalArticles = panier.reduce((total, item) => total + item.quantite, 0);
+    document.getElementById("cart-count").textContent = totalArticles;
+
+    // Remplir le conteneur du panier latéral
+    const container = document.getElementById("cart-items-container");
+    if (panier.length === 0) {
+        container.innerHTML = `<p class="empty-cart-msg">Votre panier est vide.</p>`;
+        document.getElementById("cart-total").textContent = "0 $";
+        return;
+    }
+
+    let totalPrix = 0;
+    container.innerHTML = panier.map(item => {
+        const sousTotal = item.prix * item.quantite;
+        totalPrix += sousTotal;
+        return `
+            <div class="cart-item">
+                <img src="${item.image || 'https://via.placeholder.com/150'}" alt="${item.nom}">
+                <div class="item-details">
+                    <h4>${item.nom}</h4>
+                    <p>${item.prix} $</p>
+                    <div class="quantity-controls">
+                        <button onclick="changerQuantite('${item.id}', -1)">-</button>
+                        <span>${item.quantite}</span>
+                        <button onclick="changerQuantite('${item.id}', 1)">+</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById("cart-total").textContent = `${totalPrix} $`;
+}
+
+// Événements pour ouvrir/fermer le panier de droite
+document.getElementById("open-cart-btn").addEventListener("click", () => {
+    document.getElementById("cart-sidebar").classList.add("open");
+    document.getElementById("sidebar-overlay").classList.add("active");
+});
+
+const fermerPanier = () => {
+    document.getElementById("cart-sidebar").classList.remove("open");
+    document.getElementById("sidebar-overlay").classList.remove("active");
+};
+document.getElementById("close-cart-btn").addEventListener("click", fermerPanier);
+document.getElementById("sidebar-overlay").addEventListener("click", fermerPanier);
+
+// Passer la commande
+document.getElementById("proceed-to-checkout-btn").addEventListener("click", () => {
+    if (panier.length === 0) {
+        alert("Votre panier est vide !");
+        return;
+    }
+    fermerPanier();
+    
+    // Préparer le résumé de la page de paiement
+    const summaryContainer = document.getElementById("checkout-summary-items");
+    let totalCheckout = 0;
+    
+    summaryContainer.innerHTML = panier.map(item => {
+        const sousTotal = item.prix * item.quantite;
+        totalCheckout += sousTotal;
+        return `
+            <div class="summary-item">
+                <span>${item.nom} (x${item.quantite})</span>
+                <span>${sousTotal} $</span>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById("summary-subtotal").textContent = `${totalCheckout} $`;
+    document.getElementById("summary-total").textContent = `${totalCheckout} $`;
+
+    if (!utilisateurConnecte) {
+        alert("Veuillez vous connecter pour finaliser votre commande.");
+        basculerEcran("screen-auth");
+    } else {
+        basculerEcran("screen-checkout");
+    }
+});
+
+// Soumission du formulaire de livraison / paiement
+document.getElementById("checkout-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (panier.length === 0) return;
+
+    const commandeInfo = {
+        clientUid: utilisateurConnecte.uid,
+        clientEmail: utilisateurConnecte.email,
+        nom: document.getElementById("nom").value.trim(),
+        telephone: "+243" + document.getElementById("telephone").value.trim(),
+        adresse: {
+            numero: document.getElementById("adr-numero").value.trim(),
+            avenue: document.getElementById("adr-avenue").value.trim(),
+            quartier: document.getElementById("adr-quartier").value.trim(),
+            commune: document.getElementById("adr-commune").value.trim()
+        },
+        modePaiement: document.querySelector('input[name="payment"]:checked').value,
+        articles: panier,
+        statut: "En attente",
+        timestamp: serverTimestamp()
+    };
+
+    try {
+        await addDoc(collection(db, "commandes"), commandeInfo);
+        alert("Félicitations ! Votre commande a été enregistrée avec succès.");
+        panier = [];
+        sauvegarderEtMettreAJourPanier();
+        basculerEcran("screen-home");
+    } catch (err) {
+        alert("Erreur lors de la validation de la commande : " + err.message);
+    }
+});
+
+// Cacher/Montrer les opérateurs selon le choix de paiement
+document.getElementById("pay-mobile").addEventListener("change", () => {
+    document.getElementById("mobile-operators-section").style.display = "block";
+});
+document.getElementById("pay-cash").addEventListener("change", () => {
+    document.getElementById("mobile-operators-section").style.display = "none";
+});
+
+// ================================================================= */
+// 5. SYSTÈME DE CONNEXION ET AUTHENTIFICATION                       */
 // ================================================================= */
 const authBtnNav = document.getElementById("auth-nav-btn");
 authBtnNav.addEventListener("click", () => {
@@ -91,7 +257,7 @@ document.getElementById("link-switch-auth").addEventListener("click", (e) => {
     document.getElementById("auth-title").textContent = estEnModeInscription ? "Créer un compte" : "Connexion";
     document.getElementById("auth-subtitle").textContent = estEnModeInscription ? "Inscrivez-vous pour votre suivi à Kamina" : "Connectez-vous pour finaliser vos achats";
     document.getElementById("auth-submit-btn").textContent = estEnModeInscription ? "Créer mon compte" : "Se connecter";
-    document.getElementById("link-switch-auth").textContent = estEnModeInscription ? "Se connecter à un compte" : "Créer un compte";
+    document.getElementById("link-switch-auth").textContent = estEnModeInscription ? "Se connecter" : "Créer un compte";
 });
 
 document.getElementById("toggle-password-visibility").addEventListener("click", () => {
@@ -99,7 +265,6 @@ document.getElementById("toggle-password-visibility").addEventListener("click", 
     pInput.type = pInput.type === "password" ? "text" : "password";
 });
 
-// Formulaire Soumission Authentification
 document.getElementById("auth-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("auth-email").value.trim();
@@ -114,7 +279,7 @@ document.getElementById("auth-form").addEventListener("submit", async (e) => {
                 role: "client",
                 creeLe: serverTimestamp()
             });
-            alert("Compte client créé avec succès !");
+            alert("Compte créé avec succès !");
         } else {
             await signInWithEmailAndPassword(auth, email, mdp);
         }
@@ -124,7 +289,7 @@ document.getElementById("auth-form").addEventListener("submit", async (e) => {
     }
 });
 
-// Écouteur de l'état de l'utilisateur
+// Suivi de l'état d'authentification
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         utilisateurConnecte = user;
@@ -136,6 +301,7 @@ onAuthStateChanged(auth, async (user) => {
             document.getElementById("admin-badge").style.display = "inline-block";
             basculerEcran("screen-admin");
             initWhatsAppSectionAdmin();
+            chargerCommandesAdmin();
         } else {
             estAdmin = false;
             document.getElementById("admin-badge").style.display = "none";
@@ -148,17 +314,18 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("admin-badge").style.display = "none";
         basculerEcran("screen-home");
     }
+    sauvegarderEtMettreAJourPanier();
 });
 
 // ================================================================= */
-// 5. FONCTIONNALITÉS CATALOGUE ET PANIER (ORIGINE SÉCURISÉE)         */
+// 6. CHARGEMENT ET ENREGISTREMENT DU CATALOGUE                       */
 // ================================================================= */
-let catalogueProduits = [];
 function chargerProduitsVitrine() {
     onSnapshot(collection(db, "produits"), (snapshot) => {
         catalogueProduits = [];
         snapshot.forEach(d => catalogueProduits.push({ id: d.id, ...d.data() }));
         afficherProduits(catalogueProduits);
+        if (estAdmin) afficherProduitsAdmin(catalogueProduits);
     });
 }
 
@@ -180,18 +347,42 @@ function afficherProduits(liste) {
     `).join('');
 }
 
-// Recherche & Filtres simples
+function afficherProduitsAdmin(liste) {
+    const container = document.getElementById("admin-products-list-container");
+    if (!container) return;
+    container.innerHTML = liste.map(p => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-body); padding:8px; border-radius:6px; margin-bottom:5px; border:1px solid var(--border);">
+            <span style="font-size:13px;">${p.nom} - <strong>${p.prix} $</strong></span>
+            <span style="color:var(--text-muted); font-size:11px;">${p.categorie}</span>
+        </div>
+    `).join('');
+}
+
+// Recherche de produits
 document.getElementById("search-input").addEventListener("input", (e) => {
     const txt = e.target.value.toLowerCase();
     const filtres = catalogueProduits.filter(p => p.nom.toLowerCase().includes(txt) || p.caracteristiques.toLowerCase().includes(txt));
     afficherProduits(filtres);
 });
 
-// Structure Admin d'ajout simple
+// Gestion des catégories du formulaire d'ajout Admin
 let categorieAdminSelectionnee = "Ordinateurs";
+["computers", "smartphones", "accessories"].forEach(id => {
+    const btn = document.getElementById("tab-" + id);
+    if(btn) {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".admin-tab-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            categorieAdminSelectionnee = btn.textContent.trim().split(" ").pop();
+            document.getElementById("form-admin-title").textContent = `Ajouter un produit dans : ${categorieAdminSelectionnee}`;
+        });
+    }
+});
+
+// Enregistrer un nouveau produit (Admin)
 document.getElementById("admin-product-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if(!estAdmin) return;
+    if (!estAdmin) return;
     const pNom = document.getElementById("admin-p-name").value.trim();
     const pSpecs = document.getElementById("admin-p-specs").value.trim();
     const pPrix = parseFloat(document.getElementById("admin-p-price").value);
@@ -213,21 +404,46 @@ document.getElementById("admin-product-form").addEventListener("submit", async (
     }
 });
 
+// Charger le suivi des commandes pour l'admin
+function chargerCommandesAdmin() {
+    onSnapshot(collection(db, "commandes"), (snapshot) => {
+        const container = document.getElementById("admin-orders-container");
+        if (snapshot.empty) {
+            container.innerHTML = `<p style="color: var(--text-muted); font-size: 14px;">Aucune commande pour le moment.</p>`;
+            return;
+        }
+        container.innerHTML = snapshot.docs.map(docSnap => {
+            const cmd = docSnap.data();
+            return `
+                <div style="background:var(--bg-card); padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid var(--border); font-size:12px;">
+                    <strong>Client :</strong> ${cmd.nom} (${cmd.telephone})<br>
+                    <strong>Adresse :</strong> N°${cmd.adresse.numero}, Av. ${cmd.adresse.avenue}, Q. ${cmd.adresse.quartier}, ${cmd.adresse.commune}<br>
+                    <strong>Paiement :</strong> ${cmd.modePaiement}<br>
+                    <strong>Articles :</strong> ${cmd.articles.map(a => `${a.nom} (x${a.quantite})`).join(', ')}
+                </div>
+            `;
+        }).join('');
+    });
+}
+
 // ================================================================= */
-// 6. MODULE CHAT SÉCURISÉ DE BOUT EN BOUT : CÔTÉ CLIENT              */
+// 7. MODULE CHAT SÉCURISÉ DE BOUT EN BOUT : CÔTÉ CLIENT              */
 // ================================================================= */
 const bulleOpenBtn = document.getElementById("ai-chat-open-btn");
 const boxChat = document.getElementById("ai-chat-box");
-bulleOpenBtn.addEventListener("click", () => {
-    boxChat.style.display = boxChat.style.display === "flex" ? "none" : "flex";
-});
-document.getElementById("ai-chat-close-btn").addEventListener("click", () => { boxChat.style.display = "none"; });
+if(bulleOpenBtn && boxChat) {
+    bulleOpenBtn.addEventListener("click", () => {
+        boxChat.style.display = boxChat.style.display === "flex" ? "none" : "flex";
+    });
+    document.getElementById("ai-chat-close-btn").addEventListener("click", () => { boxChat.style.display = "none"; });
+}
 
 function initWhatsAppSectionClient() {
-    if(!utilisateurConnecte) return;
+    if (!utilisateurConnecte) return;
     const q = query(collection(db, "chats", utilisateurConnecte.uid, "messages"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
         const container = document.getElementById("client-chat-messages-container");
+        if(!container) return;
         container.innerHTML = "";
         snapshot.forEach(docSnap => {
             const m = docSnap.data();
@@ -237,8 +453,8 @@ function initWhatsAppSectionClient() {
             const div = document.createElement("div");
             div.className = `msg-bubble ${estMonMessage ? 'outgoing' : 'incoming'}`;
             
-            if(m.type === "audio") {
-                div.innerHTML = `<div class="audio-player"> 🎵  Audio : <audio src="${m.audioUrl}" controls></audio></div>`;
+            if (m.type === "audio") {
+                div.innerHTML = `<div class="audio-player"> 🎵 <audio src="${m.audioUrl}" controls></audio></div>`;
             } else {
                 div.textContent = texteAffiche;
             }
@@ -248,7 +464,6 @@ function initWhatsAppSectionClient() {
     });
 }
 
-// Envoi Message Texte Client
 document.getElementById("client-chat-send-btn").addEventListener("click", envoyerMessageTexteClient);
 document.getElementById("client-chat-input").addEventListener("keypress", (e) => { if(e.key === "Enter") envoyerMessageTexteClient(); });
 
@@ -260,7 +475,6 @@ async function envoyerMessageTexteClient() {
     const texteChiffre = chiffrerDeBoutEnBout(texte);
     input.value = "";
 
-    // Mettre à jour l'activité client pour l'admin
     await setDoc(doc(db, "utilisateurs_actifs_chat", utilisateurConnecte.uid), {
         uid: utilisateurConnecte.uid,
         email: utilisateurConnecte.email,
@@ -275,19 +489,20 @@ async function envoyerMessageTexteClient() {
     });
 }
 
-// Enregistrement Audio Client
 const clientMicBtn = document.getElementById("client-chat-mic-btn");
-clientMicBtn.addEventListener("click", () => gererEnregistrementAudio(utilisateurConnecte.uid, clientMicBtn));
+if(clientMicBtn) {
+    clientMicBtn.addEventListener("click", () => gererEnregistrementAudio(utilisateurConnecte.uid, clientMicBtn));
+}
 
 // ================================================================= */
-// 7. MODULE CHAT SÉCURISÉ DE BOUT EN BOUT : CÔTÉ ADMINISTRATEUR      */
+// 8. MODULE CHAT SÉCURISÉ DE BOUT EN BOUT : CÔTÉ ADMINISTRATEUR      */
 // ================================================================= */
 function initWhatsAppSectionAdmin() {
-    // Écouter la liste des clients ayant initié une discussion
     onSnapshot(collection(db, "utilisateurs_actifs_chat"), (snapshot) => {
         const sidebar = document.getElementById("admin-chat-users-list");
+        if(!sidebar) return;
         sidebar.innerHTML = "";
-        if(snapshot.empty) {
+        if (snapshot.empty) {
             sidebar.innerHTML = `<p class="empty-msg">Aucun client.</p>`;
             return;
         }
@@ -307,13 +522,16 @@ function selectClientPourDiscussionAdmin(uidClient, emailClient) {
     document.getElementById("admin-chat-area").style.display = "flex";
     document.getElementById("admin-active-client-title").textContent = `Discussion avec : ${emailClient}`;
     
-    // Mettre à jour le focus visuel de la liste
-    initWhatsAppSectionAdmin();
+    // Rafraîchir la sélection visuelle active de la liste de gauche
+    document.querySelectorAll(".chat-user-item").forEach(item => {
+        if(item.textContent === emailClient.split('@')[0]) item.classList.add("active");
+        else item.classList.remove("active");
+    });
 
-    // Écouter les messages de ce client spécifique
     const q = query(collection(db, "chats", uidClient, "messages"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
         const container = document.getElementById("admin-chat-messages-container");
+        if(!container) return;
         container.innerHTML = "";
         snapshot.forEach(docSnap => {
             const m = docSnap.data();
@@ -323,8 +541,8 @@ function selectClientPourDiscussionAdmin(uidClient, emailClient) {
             const div = document.createElement("div");
             div.className = `msg-bubble ${estAdminMsg ? 'outgoing' : 'incoming'}`;
             
-            if(m.type === "audio") {
-                div.innerHTML = `<div class="audio-player"> 🎵  Audio : <audio src="${m.audioUrl}" controls></audio></div>`;
+            if (m.type === "audio") {
+                div.innerHTML = `<div class="audio-player"> 🎵 <audio src="${m.audioUrl}" controls></audio></div>`;
             } else {
                 div.textContent = texteAffiche;
             }
@@ -334,14 +552,13 @@ function selectClientPourDiscussionAdmin(uidClient, emailClient) {
     });
 }
 
-// Envoi Message Admin
 document.getElementById("admin-chat-send-btn").addEventListener("click", envoyerMessageTexteAdmin);
 document.getElementById("admin-chat-input").addEventListener("keypress", (e) => { if(e.key === "Enter") envoyerMessageTexteAdmin(); });
 
 async function envoyerMessageTexteAdmin() {
     const input = document.getElementById("admin-chat-input");
     const texte = input.value.trim();
-    if(!texte || !clientSelectionnePourChat || !utilisateurConnecte) return;
+    if (!texte || !clientSelectionnePourChat || !utilisateurConnecte) return;
 
     const texteChiffre = chiffrerDeBoutEnBout(texte);
     input.value = "";
@@ -354,26 +571,25 @@ async function envoyerMessageTexteAdmin() {
     });
 }
 
-// Enregistrement Audio Admin
 const adminMicBtn = document.getElementById("admin-chat-mic-btn");
-adminMicBtn.addEventListener("click", () => {
-    if(!clientSelectionnePourChat) return;
-    gererEnregistrementAudio(clientSelectionnePourChat, adminMicBtn);
-});
+if(adminMicBtn) {
+    adminMicBtn.addEventListener("click", () => {
+        if (!clientSelectionnePourChat) return;
+        gererEnregistrementAudio(clientSelectionnePourChat, adminMicBtn);
+    });
+}
 
 // ================================================================= */
-// 8. LOGIQUE MUTUELLE DE CAPTURE ET ENVOI AUDIO                      */
+// 9. LOGIQUE MUTUELLE DE CAPTURE ET ENVOI AUDIO                      */
 // ================================================================= */
 async function gererEnregistrementAudio(idDossierChat, elementBoutonMic) {
     if (enregistreurMedia && enregistreurMedia.state === "recording") {
-        // Stopper l'enregistrement
         elementBoutonMic.classList.remove("recording");
         elementBoutonMic.textContent = "🎤";
         enregistreurMedia.stop();
     } else {
-        // Démarrer l'enregistrement
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("L'enregistrement audio n'est pas supporté ou autorisé sur votre appareil.");
+            alert("L'enregistrement audio n'est pas supporté ou autorisé.");
             return;
         }
         try {
@@ -388,11 +604,9 @@ async function gererEnregistrementAudio(idDossierChat, elementBoutonMic) {
                 const nomFichier = `audio_${Date.now()}.mp3`;
                 const stockageRef = ref(storage, `chats/${idDossierChat}/${nomFichier}`);
                 
-                // Upload du fichier sur Firebase Storage
                 const snapshot = await uploadBytes(stockageRef, blobAudio);
                 const urlAudioRecuperee = await getDownloadURL(snapshot.ref);
                 
-                // Sauvegarde de la référence dans le document chat Firestore
                 await addDoc(collection(db, "chats", idDossierChat, "messages"), {
                     senderId: utilisateurConnecte.uid,
                     audioUrl: urlAudioRecuperee,
@@ -409,3 +623,6 @@ async function gererEnregistrementAudio(idDossierChat, elementBoutonMic) {
         }
     }
 }
+
+// Premier chargement initial obligatoire
+chargerProduitsVitrine();
