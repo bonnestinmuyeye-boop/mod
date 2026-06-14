@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <header>
         <div class="logo" id="main-logo-btn" style="cursor: pointer;">Tech<span>Shop</span> <small id="admin-badge" class="badge-admin" style="display: none;">Admin</small></div>
         <nav class="nav-right">
@@ -24,6 +23,12 @@
         <section class="search-container">
             <input type="text" id="search-input" placeholder="🔍 Rechercher un ordinateur, un smartphone, un accessoire...">
         </section>
+        
+        <!-- Zone d'Analyse IA Proactive Client -->
+        <section style="padding: 0 6% 10px 6%;">
+            <div id="client-ai-suggestions"></div>
+        </section>
+
         <section class="categories-container">
             <button class="filter-btn active" data-category="tous">Tout voir</button>
             <button class="filter-btn" data-category="Ordinateurs">💻 Ordinateurs</button>
@@ -45,7 +50,10 @@
                 </div>
                 <div class="form-group">
                     <label for="auth-password">Mot de passe</label>
-                    <input type="password" id="auth-password" placeholder="••••••••" required>
+                    <div class="password-wrapper">
+                        <input type="password" id="auth-password" placeholder="••••••••" required>
+                        <button type="button" id="toggle-password-visibility" class="toggle-password">👁️</button>
+                    </div>
                 </div>
                 <button type="submit" id="auth-submit-btn" class="confirm-order-btn" style="width: 100%;">Se connecter</button>
             </form>
@@ -91,7 +99,6 @@
                         <input type="text" id="adr-commune" placeholder="Ex: Kamina" required>
                     </div>
                 </div>
-
                 <h2 style="margin-top: 40px;">Mode de Paiement</h2>
                 <div class="payment-methods-grid">
                     <label class="payment-method-card">
@@ -111,7 +118,6 @@
                         </div>
                     </label>
                 </div>
-
                 <div id="mobile-operators-section" class="operators-box">
                     <h3>Sélectionnez votre réseau :</h3>
                     <div class="operators-grid">
@@ -132,7 +138,6 @@
                 <button type="submit" class="confirm-order-btn" style="margin-top: 20px; width: 100%;">Confirmer et payer ma commande</button>
             </form>
         </section>
-
         <section class="checkout-summary-section">
             <h3>Résumé de la commande</h3>
             <div id="checkout-summary-items"></div>
@@ -148,6 +153,10 @@
     <main id="screen-admin" class="app-screen admin-layout" style="display: none;">
         <section class="admin-control-panel">
             <h2>Gestion du Catalogue Équipements</h2>
+            
+            <!-- Zone d'Analyse Business Intelligence IA Admin -->
+            <div id="admin-ai-insights" style="margin-top: 15px; margin-bottom: 15px;"></div>
+
             <div class="admin-category-selectors">
                 <button class="admin-tab-btn active" id="tab-computers">💻 Ordinateurs</button>
                 <button class="admin-tab-btn" id="tab-smartphones">📱 Smartphones</button>
@@ -183,7 +192,6 @@
             <h3>Équipements actuellement en ligne</h3>
             <div class="admin-products-list" id="admin-products-list-container"></div>
         </section>
-
         <section class="admin-users-panel">
             <div class="admin-section-box" style="margin-bottom: 25px;">
                 <h2>📦 Suivi des Commandes Clients</h2>
@@ -191,7 +199,6 @@
                     <p style="color: var(--text-muted); font-size: 14px;">Aucune commande pour le moment.</p>
                 </div>
             </div>
-
             <div class="admin-section-box">
                 <h2>Utilisateurs Inscrits & Connectés</h2>
                 <div class="users-list-wrapper" id="admin-users-container"></div>
@@ -233,7 +240,6 @@
             </div>
         </div>
     </div>
-
     <script type="module" src="app.js"></script>
 </body>
 </html>
