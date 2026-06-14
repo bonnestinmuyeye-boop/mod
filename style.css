@@ -817,3 +817,50 @@ header {
     cursor: pointer;
     font-weight: 700;
 }
+
+/* Styles supplémentaires pour la messagerie WhatsApp et Audio */
+.chat-thread-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: var(--transition);
+    text-align: left;
+}
+.chat-thread-item:hover, .chat-thread-item.active {
+    border-color: var(--primary);
+    background: var(--border);
+}
+.audio-msg-play {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+.recording-active {
+    background: #ef4444 !important;
+    animation: micPulse 1s infinite alternate;
+}
+@keyframes micPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
+.admin-msg-chat {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.admin-msg-chat.client {
+    background: var(--bg-card);
+    color: var(--text-main);
+    align-self: flex-start;
+}
+.admin-msg-chat.admin {
+    background: var(--accent);
+    color: white;
+    align-self: flex-end;
+}
