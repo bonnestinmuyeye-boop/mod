@@ -64,10 +64,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const closeCartBtn = document.getElementById('close-cart-btn');
     const overlay = document.getElementById('sidebar-overlay');
     const proceedBtn = document.getElementById('proceed-to-checkout-btn');
-
+    
     if (openCartBtn) openCartBtn.addEventListener('click', ouvrirPanier);
     if (closeCartBtn) closeCartBtn.addEventListener('click', fermerPanier);
     if (overlay) overlay.addEventListener('click', fermerPanier);
+    
     if (proceedBtn) {
         proceedBtn.addEventListener('click', () => {
             if (PANIER.length === 0) {
@@ -86,10 +87,22 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Gestion de la visibilité du mot de passe (Œil)
+    const togglePasswordBtn = document.getElementById('toggle-password-visibility');
+    const passwordInput = document.getElementById('auth-password');
+    if (togglePasswordBtn && passwordInput) {
+        togglePasswordBtn.addEventListener('click', () => {
+            const isPassword = passwordInput.getAttribute('type') === 'password';
+            passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+            togglePasswordBtn.textContent = isPassword ? '🙈' : '👁️';
+        });
+    }
+
     // Liaison Formulaire Authentification
     const authForm = document.getElementById('auth-form');
     if (authForm) authForm.addEventListener('submit', gererSoumissionAuth);
-
+    
+    // Liaison Initiale du bouton Switch d'authentification
     const linkSwitch = document.getElementById('link-switch-auth');
     if (linkSwitch) {
         linkSwitch.addEventListener('click', (e) => {
@@ -102,7 +115,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Liaison Formulaire Checkout
     const checkoutForm = document.getElementById('checkout-form');
     if (checkoutForm) checkoutForm.addEventListener('submit', validerCommandeFinale);
-
     const payMobile = document.getElementById('pay-mobile');
     const payCash = document.getElementById('pay-cash');
     if (payMobile) payMobile.addEventListener('change', () => { document.getElementById('mobile-operators-section').style.display = 'block'; });
@@ -151,7 +163,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const aiChatCloseBtn = document.getElementById('ai-chat-close-btn');
     const aiChatSendBtn = document.getElementById('ai-chat-send-btn');
     const aiChatInput = document.getElementById('ai-chat-input');
-
     if (aiChatOpenBtn) aiChatOpenBtn.addEventListener('click', () => { document.getElementById('ai-chat-box').classList.toggle('open'); });
     if (aiChatCloseBtn) aiChatCloseBtn.addEventListener('click', () => { document.getElementById('ai-chat-box').classList.remove('open'); });
     if (aiChatSendBtn) aiChatSendBtn.addEventListener('click', envoyerMessageIA);
@@ -191,8 +202,8 @@ onAuthStateChanged(auth, async (user) => {
                 if (adminBadge) adminBadge.style.display = 'inline-block';
                 naviguerVers('screen-admin');
                 chargerUtilisateursAdmin();
-                ecouterCommandesAdmin(); // Activer le flux temps réel des commandes
-                executerAnalyseIAAdmin(); // Déclencher l'IA de gestion côté Admin
+                ecouterCommandesAdmin();
+                executerAnalyseIAAdmin();
             } else {
                 if (adminBadge) adminBadge.style.display = 'none';
             }
@@ -206,7 +217,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Événement clic bouton Connexion/Déconnexion Navbar
 const authNavBtn = document.getElementById('auth-nav-btn');
 if (authNavBtn) {
     authNavBtn.addEventListener('click', () => {
@@ -244,14 +254,11 @@ function afficherCatalogueClient() {
     const container = document.getElementById('products-container');
     if (!container) return;
     container.innerHTML = "";
-
     const produitsFiltres = CATALOGUE.filter(p => categorieActiveClient === "tous" || p.category === categorieActiveClient);
-
     if (produitsFiltres.length === 0) {
         container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--text-muted);">Aucun équipement disponible.</p>`;
         return;
     }
-
     produitsFiltres.forEach(p => {
         const card = document.createElement('div');
         card.className = 'product-card';
@@ -268,7 +275,6 @@ function afficherCatalogueClient() {
         `;
         container.appendChild(card);
     });
-
     container.querySelectorAll('.add-to-cart-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             ajouterAuPanier(this.getAttribute('data-id'));
@@ -281,9 +287,7 @@ function filtrerRecherche() {
     const container = document.getElementById('products-container');
     if (!container) return;
     container.innerHTML = "";
-
     const produitsFiltres = CATALOGUE.filter(p => p.name.toLowerCase().includes(cible) || (p.specs && p.specs.toLowerCase().includes(cible)));
-
     produitsFiltres.forEach(p => {
         const card = document.createElement('div');
         card.className = 'product-card';
@@ -312,7 +316,13 @@ function basculerFormulaireAuth() {
         `Déjà inscrit ? <a href="#" id="link-switch-auth">Se connecter</a>` : 
         `Pas encore de compte ? <a href="#" id="link-switch-auth">Créer un compte</a>`;
     
-    // Réattacher l'écouteur après réécriture HTML
+    // Réattacher l'œil si l'HTML change ou se réinitialise
+    const togglePasswordBtn = document.getElementById('toggle-password-visibility');
+    if (togglePasswordBtn) {
+        togglePasswordBtn.textContent = '👁️';
+        document.getElementById('auth-password').setAttribute('type', 'password');
+    }
+
     document.getElementById('link-switch-auth').addEventListener('click', (e) => {
         e.preventDefault();
         modeInscription = !modeInscription;
@@ -324,7 +334,6 @@ async function gererSoumissionAuth(e) {
     e.preventDefault();
     const email = document.getElementById('auth-email').value;
     const pass = document.getElementById('auth-password').value;
-
     try {
         if (modeInscription) {
             const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
@@ -345,7 +354,7 @@ async function gererSoumissionAuth(e) {
 }
 
 // =================================================================
-// 8. FONCTIONS PANIER & LOGIQUE D'ACHAT (CORRIGÉES)
+// 8. FONCTIONS PANIER & LOGIQUE D'ACHAT (CORRIGÉES POUR LOOK ALIBABA)
 // =================================================================
 function ouvrirPanier() { 
     document.getElementById('cart-sidebar').classList.add('open'); 
@@ -356,16 +365,20 @@ function fermerPanier() {
     document.getElementById('sidebar-overlay').classList.remove('open'); 
 }
 
+/* Correction demandée : Le panier met à jour la quantité et l'état visuel mais ne s'ouvre PLUS automatiquement lors de l'ajout */
 function ajouterAuPanier(id) {
     const itemStock = CATALOGUE.find(p => p.id === id);
     if (!itemStock) return;
     const existant = PANIER.find(item => item.id === id);
-    if (existant) { existant.quantite++; } else { PANIER.push({ ...itemStock, quantite: 1 }); }
+    if (existant) { 
+        existant.quantite++; 
+    } else { 
+        PANIER.push({ ...itemStock, quantite: 1 }); 
+    }
     synchroniserPanier();
-    ouvrirPanier();
+    // ouvrirPanier(); <-- Retiré pour satisfaire la demande d'affichage moderne et non-intrusif
 }
 
-// Fonction pour vider complètement le panier ("Supprimer la commande")
 window.viderLePanierComplet = function() {
     if (confirm("Voulez-vous vraiment supprimer toute cette commande ?")) {
         PANIER = [];
@@ -383,10 +396,10 @@ function synchroniserPanier() {
     const totalEl = document.getElementById('cart-total');
     if (countEl) countEl.textContent = totalItems;
     if (totalEl) totalEl.textContent = prixTotal + " $";
-
+    
     const container = document.getElementById('cart-items-container');
     if (!container) return;
-
+    
     if (PANIER.length === 0) {
         container.innerHTML = `<p class="empty-cart-msg">Votre panier est vide.</p>`;
     } else {
@@ -397,42 +410,39 @@ function synchroniserPanier() {
             row.style.display = 'flex';
             row.style.alignItems = 'center';
             row.style.justifyContent = 'space-between';
-            row.style.marginBottom = '12px';
+            row.style.padding = '10px 0';
+            row.style.borderBottom = '1px solid var(--border)';
             row.style.gap = '10px';
             
-            // Correction : Ajout de la vignette de l'image du produit et bouton de suppression direct
             row.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                    <img src="${item.imageUrl || 'https://via.placeholder.com/50'}" alt="${item.name}" class="cart-item-thumbnail" style="width:50px; height:50px; object-fit:cover; border-radius:6px; background:#fafafa;">
+                    <img src="${item.imageUrl || 'https://via.placeholder.com/50'}" alt="${item.name}" style="width:45px; height:45px; object-fit:cover; border-radius:6px; background:#fafafa;">
                     <div>
-                        <h4 style="margin:0;font-size:13px; font-weight:600;">${item.name}</h4>
-                        <small style="color:var(--text-muted);">${item.price}$ x ${item.quantite}</small>
+                        <h4 style="margin:0; font-size:13px; font-weight:600; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden;">${item.name}</h4>
+                        <small style="color:var(--text-muted); font-weight:500;">${item.price} $ x ${item.quantite}</small>
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px;">
                     <button class="qty-btn" onclick="window.modifierQte('${item.id}', -1)">-</button>
                     <button class="qty-btn" onclick="window.modifierQte('${item.id}', 1)">+</button>
-                    <button class="delete-item-btn" onclick="window.retirerDuPanier('${item.id}')" style="background:none; border:none; color:#ef4444; font-size:14px; cursor:pointer; margin-left:5px;">❌</button>
+                    <button onclick="window.retirerDuPanier('${item.id}')" style="background:none; border:none; color:#ef4444; font-size:14px; cursor:pointer; margin-left:4px;">❌</button>
                 </div>
             `;
             container.appendChild(row);
         });
 
-        // Correction : Ajout dynamique du bouton pour annuler ou supprimer la commande complète si absent
         if (!document.getElementById('btn-clear-cart-global')) {
             const clearBtnContainer = document.createElement('div');
             clearBtnContainer.id = 'btn-clear-cart-global';
-            clearBtnContainer.style.padding = '10px 0';
+            clearBtnContainer.style.padding = '15px 0 5px 0';
             clearBtnContainer.innerHTML = `
-                <button onclick="window.viderLePanierComplet()" style="width: 100%; background: #ef4444; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                    🗑️ Supprimer la commande (Vider)
+                <button onclick="window.viderLePanierComplet()" style="width: 100%; background: #ef4444; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size:13px;">
+                    🗑️ Vider le panier complet
                 </button>
             `;
             container.appendChild(clearBtnContainer);
         }
     }
-    
-    // Déclenche l'analyse IA automatique à chaque changement du panier client
     analyserPanierAvecIA();
 }
 
@@ -455,7 +465,7 @@ function preparerEcranCheckout() {
     summaryContainer.innerHTML = "";
     
     PANIER.forEach(item => {
-        summaryContainer.innerHTML += `<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>${item.name} (x${item.quantite})</span><span>${item.price * item.quantite} $</span></div>`;
+        summaryContainer.innerHTML += `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;"><span>${item.name} (x${item.quantite})</span><span>${item.price * item.quantite} $</span></div>`;
     });
     const total = PANIER.reduce((sum, item) => sum + (item.price * item.quantite), 0);
     document.getElementById('summary-subtotal').textContent = total + " $";
@@ -488,7 +498,6 @@ async function validerCommandeFinale(e) {
         modePaiement: detailPaiement,
         dateCommande: serverTimestamp()
     };
-
     try {
         await addDoc(collection(db, "commandes"), commandePayload);
         alert("Commande enregistrée avec succès ! Notre équipe va vous contacter pour la livraison.");
@@ -514,7 +523,6 @@ async function ajouterNouveauProduitAdmin(e) {
         category: categorieActiveAdmin,
         createdAt: new Date().getTime()
     };
-
     try {
         await addDoc(collection(db, "produits"), nouveauProduit);
         alert("Produit ajouté au Cloud !");
@@ -529,18 +537,17 @@ function afficherProduitsAdmin() {
     const listContainer = document.getElementById('admin-products-list-container');
     if (!listContainer) return;
     listContainer.innerHTML = "";
-
     const produitsFiltres = CATALOGUE.filter(p => p.category === categorieActiveAdmin);
-
     produitsFiltres.forEach(p => {
         const row = document.createElement('div');
         row.style.display = 'flex';
         row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
         row.style.padding = '10px';
         row.style.borderBottom = '1px solid var(--border)';
         row.innerHTML = `
-            <div><strong>${p.name}</strong> - ${p.price} $</div>
-            <button style="background:#ef4444;color:white;border:none;padding:5px;cursor:pointer;" onclick="window.supprProd('${p.id}')">Supprimer</button>
+            <div style="font-size:13px;"><strong>${p.name}</strong> - ${p.price} $</div>
+            <button style="background:#ef4444;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:12px;" onclick="window.supprProd('${p.id}')">Supprimer</button>
         `;
         listContainer.appendChild(row);
     });
@@ -560,7 +567,6 @@ window.supprProd = async function(id) {
 function ecouterCommandesAdmin() {
     const container = document.getElementById('admin-orders-container');
     if (!container) return;
-
     const q = query(collection(db, "commandes"), orderBy("dateCommande", "desc"));
     onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
@@ -605,7 +611,7 @@ async function chargerUtilisateursAdmin() {
         container.innerHTML = "";
         querySnapshot.forEach((doc) => {
             const u = doc.data();
-            container.innerHTML += `<div style="padding:8px;border-bottom:1px solid var(--border)">👤 ${u.email} - <strong>${u.role || 'client'}</strong></div>`;
+            container.innerHTML += `<div style="padding:8px;border-bottom:1px solid var(--border); font-size:13px;">👤 ${u.email} - <strong>${u.role || 'client'}</strong></div>`;
         });
     } catch (e) {
         console.error(e);
@@ -635,28 +641,23 @@ async function appelerAPIIntelGemini(promptSysteme, promptUtilisateur) {
     }
 }
 
-// Correction/Ajout : IA d'analyse proactive du panier côté client
 async function analyserPanierAvecIA() {
     const aiBox = document.getElementById('client-ai-suggestions');
-    if (!aiBox) return; // N'exécute rien si l'élément HTML n'est pas présent sur l'écran
-
+    if (!aiBox) return; 
     if (PANIER.length === 0) {
-        aiBox.innerHTML = "<p style='font-size:13px; font-style:italic;'>L'IA attend que vous ajoutiez des articles pour analyser vos besoins...</p>";
+        aiBox.innerHTML = "";
         return;
     }
-
     const nomsArticles = PANIER.map(i => i.name).join(', ');
     const promptSysteme = "Tu es un conseiller technologique IA ultra-rapide. Tu vois les articles du panier actuel de l'utilisateur. Suggère en une seule phrase courte et percutante un accessoire logique manquant (ex: souris pour PC, pochette pour téléphone). Ne fais pas de listes.";
     
     const suggestion = await appelerAPIIntelGemini(promptSysteme, `Panier actuel : ${nomsArticles}`);
-    aiBox.innerHTML = `<div style="background:rgba(29, 78, 216, 0.1); border-left:4px solid var(--primary); padding:10px; font-size:13px; border-radius:4px;">🤖 <strong>Conseil IA :</strong> ${suggestion}</div>`;
+    aiBox.innerHTML = `<div style="background:rgba(0, 173, 181, 0.1); border-left:4px solid var(--primary); padding:12px; font-size:13px; border-radius:8px; margin-bottom:10px;">🤖 <strong>Conseil IA :</strong> ${suggestion}</div>`;
 }
 
-// Correction/Ajout : IA d'analyse de stock automatique pour l'Admin
 async function executerAnalyseIAAdmin() {
     const adminAiBox = document.getElementById('admin-ai-insights');
     if (!adminAiBox) return;
-
     adminAiBox.innerHTML = "<p style='font-size:13px; color:var(--text-muted);'>L'IA analyse le catalogue global...</p>";
     
     let descriptionStock = CATALOGUE.map(p => `- ${p.name} (${p.category}) : ${p.price}$`).join('\n');
@@ -664,45 +665,37 @@ async function executerAnalyseIAAdmin() {
     
     const rapport = await appelerAPIIntelGemini(promptSysteme, descriptionStock || "Aucun produit en stock actuellement.");
     adminAiBox.innerHTML = `
-        <div style="background: #fef3c7; color: #92400e; padding: 12px; border-left: 4px solid #d97706; border-radius: 6px; font-size: 13px;">
-            <h4 style="margin:0 0 5px 0; font-size:14px;">📊 Insights Prédictifs IA</h4>
-            <div style="white-space: pre-line;">${rapport}</div>
+        <div style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 14px; border-left: 4px solid #f59e0b; border-radius: 8px; font-size: 13px;">
+            <h4 style="margin:0 0 6px 0; font-size:14px; font-weight:700;">📊 Insights Prédictifs IA</h4>
+            <div style="white-space: pre-line; line-height:1.4;">${rapport}</div>
         </div>
     `;
 }
 
-// 🤖 Partie Chatbot Client : Recommandations basées exclusivement sur le stock réel
 async function envoyerMessageIA() {
     const inputEl = document.getElementById('ai-chat-input');
     const msgContainer = document.getElementById('ai-chat-messages');
     if (!inputEl || !msgContainer || inputEl.value.trim() === "") return;
-
     const texteClient = inputEl.value;
     inputEl.value = "";
-
-    // Afficher le message du client
+    
     msgContainer.innerHTML += `<div class="ai-msg user">${texteClient}</div>`;
     msgContainer.scrollTop = msgContainer.scrollHeight;
-
-    // Préparation du contexte du stock pour Gemini
+    
     let descriptionStock = CATALOGUE.map(p => `- Équipement: ${p.name}, Catégorie: ${p.category}, Caractéristiques: ${p.specs || 'N/A'}, Prix: ${p.price}$`).join('\n');
     
-    const promptSysteme = `Tu es l'assistant de vente intelligent de la boutique TechShop basée à Kamina. Tu dois guider les acheteurs de manière sérieuse et commerciale. Voici notre stock réel extrait en temps réel de notre base de données : \n${descriptionStock}\n\nInstructions impératives :\n1. Ne propose OU ne conseille QUE des produits présents dans cette liste ci-dessus.\n2. Si un produit demandé n'est pas dans la liste, indique poliment qu'il est en rupture de stock et oriente-le vers un produit équivalent disponible.\n3. Réponds de manière concise, polie et professionnelle.`;
-
-    // Afficher un loader temporaire
+    const promptSysteme = `Tu es l'assistant de vente intelligent de la boutique TechShop basée à Kamina. Tu devez guider les acheteurs de manière sérieuse et commerciale. Voici notre stock réel extrait en temps réel de notre base de données : \n${descriptionStock}\n\nInstructions impératives :\n1. Ne propose OU ne conseille QUE des produits présents dans cette liste ci-dessus.\n2. Si un produit demandé n'est pas dans la liste, indique poliment qu'il est en rupture de stock et oriente-le vers un produit équivalent disponible.\n3. Réponds de manière concise, polie et professionnelle.`;
+    
     const loaderId = "loader-" + Date.now();
-    msgContainer.innerHTML += `<div class="ai-msg bot" id="${loaderId}">Reflexion en cours...</div>`;
+    msgContainer.innerHTML += `<div class="ai-msg bot" id="${loaderId}">Réflexion en cours...</div>`;
     msgContainer.scrollTop = msgContainer.scrollHeight;
-
     const reponseIA = await appelerAPIIntelGemini(promptSysteme, texteClient);
     
-    // Remplacer le loader par la réponse finale
     const loaderEl = document.getElementById(loaderId);
     if (loaderEl) loaderEl.textContent = reponseIA;
     msgContainer.scrollTop = msgContainer.scrollHeight;
 }
 
-// 🛠️ Partie Assistant Administrateur : Suggestions d'images de qualité
 async function gererAssistantImageAdmin() {
     const promptSysteme = `Tu es un expert en UI/UX design et marketing e-commerce. L'administrateur de l'application TechShop à Kamina souhaite de l'aide pour optimiser ses fiches d'équipements ou trouver d'excellentes idées d'images professionnelles. Donne-lui 3 conseils d'URLs ou structures d'images parfaites pour vendre de la technologie haut de gamme.`;
     alert("Analyse de l'Assistant Admin IA :\n\n" + await appelerAPIIntelGemini(promptSysteme, "Donne-moi des conseils d'optimisation pour mes liens d'images de produits et l'analyse de fiches."));
