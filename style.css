@@ -1,6 +1,3 @@
-/* ================================================================= */
-/* 1. CONFIGURATION SYSTEME & VARIABLES (THEMES SOMBRE / CLAIR)      */
-/* ================================================================= */
 :root {
     --bg-body: #0f172a;
     --bg-card: #1e293b;
@@ -37,9 +34,6 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
 }
-/* ================================================================= */
-/* 2. BARRE DE NAVIGATION (HEADER GLOBAL)                            */
-/* ================================================================= */
 header {
     background-color: var(--bg-card);
     border-bottom: 1px solid var(--border);
@@ -51,33 +45,12 @@ header {
     top: 0;
     z-index: 100;
     box-shadow: var(--shadow);
-    transition: var(--transition);
 }
-.logo {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-}
-.logo span {
-    color: var(--primary);
-}
-.nav-right {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-.icon-btn {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 50%;
-    transition: var(--transition);
-}
-.icon-btn:hover {
-    background-color: var(--border);
-}
+.logo { font-size: 24px; font-weight: 700; }
+.logo span { color: var(--primary); }
+.nav-right { display: flex; align-items: center; gap: 20px; }
+.icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; border-radius: 50%; }
+.icon-btn:hover { background-color: var(--border); }
 .login-btn {
     background: transparent;
     color: var(--text-main);
@@ -88,57 +61,25 @@ header {
     font-weight: 600;
     transition: var(--transition);
 }
-.login-btn:hover {
-    background: var(--primary);
-    color: #ffffff;
-}
-.cart-icon {
-    position: relative;
-    font-size: 22px;
-    cursor: pointer;
-    padding: 5px;
-}
+.login-btn:hover { background: var(--primary); color: #ffffff; }
+.cart-icon { position: relative; font-size: 22px; cursor: pointer; padding: 5px; }
 .cart-badge {
     position: absolute;
-    top: -5px;
-    right: -5px;
+    top: -5px; right: -5px;
     background-color: var(--accent);
-    color: white;
-    font-size: 11px;
-    font-weight: 700;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    color: white; font-size: 11px; font-weight: 700;
+    width: 18px; height: 18px; border-radius: 50%;
+    display: flex; justify-content: center; align-items: center;
 }
-/* ================================================================= */
-/* 3. VITRINE CLIENT STYLE ALIBABA (DEFILEMENT HORIZONTAL MOBILE)    */
-/* ================================================================= */
-.search-container {
-    padding: 25px 6% 10px 6%;
-    display: flex;
-    justify-content: center;
-}
+.search-container { padding: 25px 6% 10px 6%; display: flex; justify-content: center; }
 .search-container input {
-    width: 100%;
-    max-width: 600px;
-    padding: 12px 20px;
-    border-radius: 30px;
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-main);
-    font-size: 15px;
-    outline: none;
-    transition: var(--transition);
+    width: 100%; max-width: 600px; padding: 12px 20px;
+    border-radius: 30px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-main); outline: none;
 }
-.search-container input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 12px rgba(0, 173, 181, 0.25);
-}
+.search-container input:focus { border-color: var(--primary); }
 
-/* Modification majeure : Défilement fluide gauche/droite à la Alibaba */
+/* Interface Fluide Défilement Horizontal Alibaba */
 .categories-container {
     display: flex;
     justify-content: flex-start;
@@ -148,719 +89,119 @@ header {
     white-space: nowrap;
     -webkit-overflow-scrolling: touch;
 }
-.categories-container::-webkit-scrollbar {
-    display: none; /* Masque la barre pour faire plus application native */
-}
+.categories-container::-webkit-scrollbar { display: none; }
 .filter-btn {
-    flex-shrink: 0;
-    background: var(--bg-card);
-    color: var(--text-main);
-    border: 1px solid var(--border);
-    padding: 8px 18px;
-    border-radius: 25px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
-    transition: var(--transition);
+    flex-shrink: 0; background: var(--bg-card); color: var(--text-main);
+    border: 1px solid var(--border); padding: 8px 18px; border-radius: 25px;
+    cursor: pointer; font-weight: 600; font-size: 14px;
 }
-.filter-btn:hover, .filter-btn.active {
-    background: var(--primary);
-    color: #fff;
-    border-color: var(--primary);
-}
+.filter-btn.active, .filter-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-/* Grille de type Alibaba (Responsive et Mobile-First) */
 .products-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 20px;
-    padding: 0 6% 40px 6%;
+    gap: 20px; padding: 0 6% 40px 6%;
 }
 @media (max-width: 600px) {
-    .categories-container {
-        padding: 15px 4% 20px 4%; /* Marges ajustées pour petits écrans */
-    }
-    .products-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        padding: 0 3% 40px 3%;
-    }
-    .product-card {
-        border-radius: 12px !important;
-    }
-    .product-image {
-        height: 130px !important;
-    }
-    .product-info {
-        padding: 10px !important;
-    }
-    .product-title {
-        font-size: 13px !important;
-        margin-bottom: 4px !important;
-    }
-    .product-specs {
-        font-size: 11px !important;
-        margin-bottom: 8px !important;
-    }
-    .product-price {
-        font-size: 15px !important;
-    }
-    .add-to-cart-btn {
-        padding: 6px 10px !important;
-        font-size: 12px !important;
-    }
+    .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 3% 40px 3%; }
+    .categories-container { padding: 15px 4% 20px 4%; }
 }
 .product-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    transition: var(--transition);
-    display: flex;
-    flex-direction: column;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; transition: var(--transition);
 }
-.product-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0,0,0,0.25);
-}
-.product-image {
-    width: 100%;
-    height: 170px;
-    object-fit: contain;
-    background: #ffffff;
-    padding: 8px;
-}
-.product-info {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-}
-.product-title {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-.product-specs {
-    color: var(--text-muted);
-    font-size: 12px;
-    line-height: 1.4;
-    margin-bottom: 12px;
-    flex-grow: 1;
-}
-.product-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: auto;
-}
-.product-price {
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--primary);
-}
-.add-to-cart-btn {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: var(--transition);
-}
-.add-to-cart-btn:hover {
-    background: var(--primary-hover);
-}
-/* ================================================================= */
-/* 4. FORMULAIRES GENERIQUES & PROTECTION MOT DE PASSE (ŒIL)         */
-/* ================================================================= */
-.form-group {
-    margin-bottom: 18px;
-}
-.form-group label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: var(--text-main);
-}
-.form-group input {
-    width: 100%;
-    padding: 10px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg-body);
-    color: var(--text-main);
-    outline: none;
-}
-.form-group input:focus {
-    border-color: var(--primary);
-}
-.form-group-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-}
+.product-card:hover { transform: translateY(-4px); }
+.product-image { width: 100%; height: 170px; object-fit: contain; background: #fff; padding: 8px; }
+.product-info { padding: 16px; display: flex; flex-direction: column; flex-grow: 1; }
+.product-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.product-specs { color: var(--text-muted); font-size: 12px; margin-bottom: 12px; flex-grow: 1; }
+.product-footer { display: flex; justify-content: space-between; align-items: center; }
+.product-price { font-size: 17px; font-weight: 700; color: var(--primary); }
+.add-to-cart-btn { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
 
-/* Wrapper CSS pour le bouton Afficher/Masquer le mot de passe */
-.password-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-.password-wrapper input {
-    padding-right: 42px;
-}
-.toggle-password {
-    position: absolute;
-    right: 12px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    padding: 4px;
-    color: var(--text-muted);
-    user-select: none;
-}
-/* ================================================================= */
-/* 5. INTERFACE D'AUTHENTIFICATION                                   */
-/* ================================================================= */
-.auth-body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 50px 6%;
-}
-.auth-container {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    width: 100%;
-    max-width: 420px;
-    padding: 35px;
-    border-radius: 16px;
-    box-shadow: var(--shadow);
-}
-.auth-container h2 {
-    text-align: center;
-    margin-bottom: 5px;
-    font-size: 24px;
-}
-.auth-switch {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 14px;
-    color: var(--text-muted);
-}
-.auth-switch a {
-    color: var(--primary);
-    text-decoration: none;
-    font-weight: 600;
-}
-/* ================================================================= */
-/* 6. INTERFACE DE VALIDATION (CHECKOUT)                             */
-/* ================================================================= */
-.checkout-layout {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 40px;
-    padding: 40px 6%;
-}
-@media (max-width: 900px) {
-    .checkout-layout { grid-template-columns: 1fr; }
-}
-.checkout-form-section, .checkout-summary-section {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 30px;
-    border-radius: 16px;
-}
-.checkout-form-section h2 {
-    font-size: 20px;
-    margin-bottom: 20px;
-    border-left: 4px solid var(--primary);
-    padding-left: 10px;
-}
-.phone-input-wrapper {
-    display: flex;
-    align-items: center;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--bg-body);
-    overflow: hidden;
-}
-.phone-prefix {
-    padding: 0 12px;
-    color: var(--text-muted);
-    font-weight: 600;
-    border-right: 1px solid var(--border);
-}
-.phone-input-wrapper input {
-    border: none !important;
-}
-.address-grid {
-    display: grid;
-    grid-template-columns: 120px 1fr;
-    gap: 15px;
-}
-.payment-methods-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-.payment-method-card {
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 15px;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    cursor: pointer;
-    background: var(--bg-body);
-    transition: var(--transition);
-}
-.payment-method-card input {
-    margin-top: 4px;
-}
-.method-title {
-    display: block;
-    font-weight: 600;
-    font-size: 14px;
-}
-.method-desc {
-    font-size: 11px;
-    color: var(--text-muted);
-}
-.operators-box {
-    background: var(--bg-body);
-    padding: 15px;
-    border-radius: 10px;
-    border: 1px dashed var(--border);
-    margin-top: 15px;
-}
-.operators-box h3 {
-    font-size: 13px;
-    margin-bottom: 10px;
-}
-.operators-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.operator-label {
-    font-size: 13px;
-    font-weight: 600;
-    margin-left: 8px;
-}
-.confirm-order-btn {
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 14px;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-}
-.confirm-order-btn:hover {
-    filter: brightness(1.1);
-}
-.summary-total-box {
-    background: var(--bg-body);
-    padding: 20px;
-    border-radius: 12px;
-    margin-top: 20px;
-}
-.summary-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    font-size: 14px;
-}
-.summary-row.total {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--primary);
-    margin-bottom: 0;
-}
-.summary-divider {
-    border: 0;
-    border-top: 1px solid var(--border);
-    margin: 15px 0;
-}
-/* ================================================================= */
-/* 7. PANIER LATÉRAL (STYLE COMPACT ET MODERNE)                      */
-/* ================================================================= */
+.form-group { margin-bottom: 18px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.form-group input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-main); outline: none; }
+.form-group-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+/* Protection visuelle mot de passe */
+.password-wrapper { position: relative; display: flex; align-items: center; }
+.password-wrapper input { padding-right: 42px; }
+.toggle-password { position: absolute; right: 12px; background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; }
+
+.auth-body { display: flex; justify-content: center; align-items: center; padding: 50px 6%; }
+.auth-container { background: var(--bg-card); border: 1px solid var(--border); width: 100%; max-width: 420px; padding: 35px; border-radius: 16px; }
+.auth-switch { text-align: center; margin-top: 20px; font-size: 14px; }
+.auth-switch a { color: var(--primary); text-decoration: none; font-weight: 600; }
+
+.checkout-layout { display: grid; grid-template-columns: 1fr 380px; gap: 40px; padding: 40px 6%; }
+@media (max-width: 900px) { .checkout-layout { grid-template-columns: 1fr; } }
+.checkout-form-section, .checkout-summary-section { background: var(--bg-card); border: 1px solid var(--border); padding: 30px; border-radius: 16px; }
+.phone-input-wrapper { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-body); overflow: hidden; }
+.phone-prefix { padding: 0 12px; color: var(--text-muted); font-weight: 600; border-right: 1px solid var(--border); }
+.address-grid { display: grid; grid-template-columns: 120px 1fr; gap: 15px; }
+.payment-methods-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.payment-method-card { border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; gap: 10px; cursor: pointer; background: var(--bg-body); }
+.operators-box { background: var(--bg-body); padding: 15px; border-radius: 10px; border: 1px dashed var(--border); margin-top: 15px; }
+.operators-grid { display: flex; flex-direction: column; gap: 8px; }
+.confirm-order-btn { background: var(--accent); color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: 700; cursor: pointer; }
+
+/* Panier Modifié (Reste masqué par défaut) */
 .cart-sidebar {
-    position: fixed;
-    top: 0;
-    right: -360px;
-    width: 360px;
-    height: 100%;
-    background: var(--bg-card);
-    border-left: 1px solid var(--border);
-    box-shadow: -8px 0 25px rgba(0,0,0,0.45);
-    z-index: 200;
-    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    flex-direction: column;
-    padding: 25px;
+    position: fixed; top: 0; right: -360px; width: 360px; height: 100%;
+    background: var(--bg-card); border-left: 1px solid var(--border);
+    box-shadow: -8px 0 25px rgba(0,0,0,0.45); z-index: 200;
+    transition: right 0.35s ease; display: flex; flex-direction: column; padding: 25px;
 }
-@media (max-width: 400px) {
-    .cart-sidebar {
-        width: 100%;
-        right: -100%;
-    }
-}
-.cart-sidebar.open {
-    right: 0;
-}
-.cart-sidebar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-}
-.close-btn {
-    background: none;
-    border: none;
-    color: var(--text-main);
-    font-size: 28px;
-    cursor: pointer;
-    transition: var(--transition);
-}
-.close-btn:hover {
-    color: #ef4444;
-}
-.cart-items {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding-right: 5px;
-}
-.empty-cart-msg {
-    text-align: center;
-    color: var(--text-muted);
-    margin-top: 40px;
-    font-size: 14px;
-}
+.cart-sidebar.open { right: 0; }
+@media (max-width: 400px) { .cart-sidebar { width: 100%; right: -100%; } }
+.cart-sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+.close-btn { background: none; border: none; color: var(--text-main); font-size: 28px; cursor: pointer; }
+.cart-items { flex-grow: 1; overflow-y: auto; }
+.empty-cart-msg { text-align: center; color: var(--text-muted); margin-top: 40px; }
+.qty-btn { background: var(--border); color: var(--text-main); border: none; width: 28px; height: 28px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+.cart-footer { border-top: 1px solid var(--border); padding-top: 20px; }
+.total-row { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 15px; }
+.checkout-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); z-index: 150; display: none; }
+.sidebar-overlay.open { display: block; }
 
-/* Boutons de quantité modernes */
-.qty-btn {
-    background: var(--border);
-    color: var(--text-main);
-    border: none;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-}
-.qty-btn:hover {
-    background: var(--primary);
-    color: white;
-}
+.admin-layout { display: grid; grid-template-columns: 1fr 380px; gap: 30px; padding: 30px 6%; }
+@media (max-width: 1150px) { .admin-layout { grid-template-columns: 1fr; } }
+.admin-control-panel, .admin-users-panel { background: var(--bg-card); border: 1px solid var(--border); padding: 25px; border-radius: 16px; }
+.admin-category-selectors { display: flex; gap: 10px; margin: 20px 0; }
+.admin-tab-btn { background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border); padding: 10px 18px; border-radius: 8px; cursor: pointer; }
+.admin-tab-btn.active { background: var(--primary); color: white; }
+.admin-add-box { background: var(--bg-body); border: 1px dashed var(--border); padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+.add-btn-large { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 700; width: 100%; cursor: pointer; }
+.ai-trigger-btn { background: #4f46e5; color: white; border: none; padding: 0 15px; border-radius: 8px; cursor: pointer; }
+.admin-products-list { display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto; }
+.admin-section-box { background: var(--bg-body); border: 1px solid var(--border); padding: 15px; border-radius: 12px; }
+.badge-admin { background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
 
-.cart-footer {
-    border-top: 1px solid var(--border);
-    padding-top: 20px;
-    margin-top: 10px;
-}
-.total-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 15px;
-}
-.checkout-btn {
-    width: 100%;
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-}
-.checkout-btn:hover {
-    background: var(--primary-hover);
-}
-.sidebar-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.55);
-    backdrop-filter: blur(2px);
-    z-index: 150;
-    display: none;
-}
-.sidebar-overlay.open {
-    display: block;
-}
-/* ================================================================= */
-/* 8. ESPACE ADMINISTRATION                                          */
-/* ================================================================= */
-.badge-admin {
-    background: #f59e0b;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    margin-left: 10px;
-    vertical-align: middle;
-}
-.admin-layout {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 30px;
-    padding: 30px 6%;
-}
-@media (max-width: 1150px) {
-    .admin-layout { grid-template-columns: 1fr; }
-}
-.admin-control-panel, .admin-users-panel {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 25px;
-    border-radius: 166px;
-    border-radius: 16px;
-}
-.admin-category-selectors {
-    display: flex;
-    gap: 10px;
-    margin: 20px 0;
-    flex-wrap: wrap;
-}
-.admin-tab-btn {
-    background: var(--bg-body);
-    color: var(--text-main);
-    border: 1px solid var(--border);
-    padding: 10px 18px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: var(--transition);
-}
-.admin-tab-btn.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: white;
-}
-.admin-add-box {
-    background: var(--bg-body);
-    border: 1px dashed var(--border);
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 25px;
-}
-.admin-add-box h3 {
-    font-size: 15px;
-    margin-bottom: 15px;
-    color: var(--primary);
-}
-.add-btn-large {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
-    font-weight: 700;
-    cursor: pointer;
-}
-.ai-trigger-btn {
-    background: #4f46e5;
-    color: white;
-    border: none;
-    padding: 0 15px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 12px;
-    white-space: nowrap;
-}
-.admin-products-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 15px;
-    max-height: 300px;
-    overflow-y: auto;
-}
-.admin-section-box {
-    background: var(--bg-body);
-    border: 1px solid var(--border);
-    padding: 15px;
-    border-radius: 12px;
-}
-/* ================================================================= */
-/* 9. INTERFACE VISUELLE DU CHATBOT GEMINI (BULLE ET FENETRE)        */
-/* ================================================================= */
-.ai-chat-wrapper {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 500;
-}
-.ai-chat-toggle-btn {
-    background: linear-gradient(135deg, #00adb5, #4f46e5);
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 30px;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    transition: var(--transition);
-}
-.ai-chat-toggle-btn:hover {
-    transform: scale(1.05);
-}
-.ai-chat-box {
-    position: absolute;
-    bottom: 55px;
-    right: 0;
-    width: 330px;
-    height: 435px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-}
-.ai-chat-box.open {
-    display: flex;
-}
-.ai-chat-header {
-    background: #1e293b;
-    border-bottom: 1px solid var(--border);
-    padding: 12px 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.ai-chat-header h4 {
-    font-size: 14px;
-    color: var(--primary);
-}
-.ai-chat-header button {
-    background: none;
-    border: none;
-    color: var(--text-main);
-    font-size: 22px;
-    cursor: pointer;
-}
-.ai-chat-messages {
-    flex-grow: 1;
-    padding: 15px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: var(--bg-body);
-}
-.ai-msg {
-    max-width: 85%;
-    padding: 10px 14px;
-    border-radius: 12px;
-    font-size: 13px;
-    line-height: 1.4;
-}
-.ai-msg.bot {
-    background: var(--bg-card);
-    color: var(--text-main);
-    align-self: flex-start;
-    border-bottom-left-radius: 2px;
-}
-.ai-msg.user {
-    background: var(--primary);
-    color: white;
-    align-self: flex-end;
-    border-bottom-right-radius: 2px;
-}
-.ai-chat-footer {
-    display: flex;
-    padding: 10px;
-    background: var(--bg-card);
-    border-top: 1px solid var(--border);
-    gap: 8px;
-}
-.ai-chat-footer input {
-    flex-grow: 1;
-    padding: 8px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: var(--bg-body);
-    color: var(--text-main);
-    outline: none;
-    font-size: 13px;
-}
-.ai-chat-footer button {
-    background: var(--primary);
-    color: white;
-    border: none;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-weight: 700;
-}
+/* Système d'onglets pour le volet de communication unifié */
+.ai-chat-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 500; }
+.ai-chat-toggle-btn { background: linear-gradient(135deg, #00adb5, #4f46e5); color: white; border: none; padding: 12px 20px; border-radius: 30px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.ai-chat-box { position: absolute; bottom: 55px; right: 0; width: 340px; height: 460px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); display: none; flex-direction: column; overflow: hidden; }
+.ai-chat-box.open { display: flex; }
+.chat-tabs-header { display: flex; background: #1e293b; border-bottom: 1px solid var(--border); padding: 5px 10px; align-items: center; justify-content: space-between; }
+.chat-tab-btn { background: none; border: none; color: var(--text-muted); padding: 8px 12px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.chat-tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+.chat-panel-content { display: flex; flex-direction: column; flex-grow: 1; height: calc(100% - 40px); }
+.ai-chat-messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: var(--bg-body); }
+.ai-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.4; }
+.ai-msg.bot { background: var(--bg-card); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 2px; }
+.ai-msg.user { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+.ai-chat-footer { display: flex; padding: 10px; background: var(--bg-card); border-top: 1px solid var(--border); gap: 8px; align-items: center; }
+.ai-chat-footer input { flex-grow: 1; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-main); outline: none; font-size: 13px; }
+.ai-chat-footer button { background: var(--primary); color: white; border: none; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-weight: 700; }
 
-/* Styles supplémentaires pour la messagerie WhatsApp et Audio */
-.chat-thread-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: var(--transition);
-    text-align: left;
-}
-.chat-thread-item:hover, .chat-thread-item.active {
-    border-color: var(--primary);
-    background: var(--border);
-}
-.audio-msg-play {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-}
-.recording-active {
-    background: #ef4444 !important;
-    animation: micPulse 1s infinite alternate;
-}
-@keyframes micPulse {
-    from { transform: scale(1); }
-    to { transform: scale(1.1); }
-}
-.admin-msg-chat {
-    max-width: 85%;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    line-height: 1.4;
-}
-.admin-msg-chat.client {
-    background: var(--bg-card);
-    color: var(--text-main);
-    align-self: flex-start;
-}
-.admin-msg-chat.admin {
-    background: var(--accent);
-    color: white;
-    align-self: flex-end;
-}
+/* Composant Audio Style WhatsApp */
+.voice-mic-btn { background: #3b82f6 !important; font-size: 14px; transition: background 0.2s; }
+.voice-mic-btn.recording { background: #ef4444 !important; animation: pulse 1s infinite; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+/* Fils de discussion admin */
+.admin-chat-row { background: var(--bg-body); border: 1px solid var(--border); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 12px; }
+.admin-chat-row.active { border-color: var(--primary); background: rgba(0, 173, 181, 0.1); }
